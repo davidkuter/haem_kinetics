@@ -9,7 +9,7 @@ class Constants:
         self.conc_hb_rbc = 0.0
         # - Concentration of oxygen [O2]
         #   From Prof. Egan: "Based on Hb saturation curve (30% at 3% O2)"
-        self.conc_oxy = 1 * 10**3  # Molar
+        self.conc_oxy = 1e3  # Molar
         # - Concentration of superoxide [O2-]
         #   We assume this to be 0 because of superoxide dismutase
         self.conc_supoxy = 0  # Molar
@@ -35,16 +35,16 @@ class Constants:
         # -------------------------------------------------------------------------------------
         # Miscellaneous Constants
         # -------------------------------------------------------------------------------------
-        self.avogadro = 6.022 * 10**23
+        self.avogadro = 6.022e23
 
         # - Volumes
-        self.vol_rbc = 90 * 10 ** -15  # Volume of RBC is 90 fL
-        self.vol_dv = 4 * 10 ** -15  # Volume of digestive vacuole is 4 fL
+        self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
+        self.vol_dv = 4e-15  # Volume of digestive vacuole is 4 fL, reported here in L
 
         # - Other
         # ToDo: Replace num_prots with that determined by the Egan lab for malaria
         #       parasites.
-        self. num_prots = 2 * 10**8  # Average number of proteins in a Yeast cell
+        self. num_prots = 2e8  # Average number of proteins in a Yeast cell
 
     def _dv_ppm_to_molar(self, ppm) -> float:
         """
@@ -56,8 +56,11 @@ class Constants:
 
         :return: Enzyme concentration in Molar
         """
+        # Convert from parts per million to parts per 1
+        conc = ppm * 10**-6
+
         # Convert to mol
-        conc = ppm * self.num_prots / self.avogadro
+        conc = conc * self.num_prots / self.avogadro
 
         # Convert to Molar
         return conc / self.vol_dv
@@ -77,6 +80,8 @@ class Constants:
         hb_conc = hb_conc * 0.06207
 
         # Convert from fmol.cell-1 to mol.L-1 (M)
+        # First convert from fmol to mol
+        hb_conc = (hb_conc * 10**-15)
         hb_conc = hb_conc / self.vol_rbc
 
         # Convert from per haemoglobin molecule to per haem
@@ -96,7 +101,7 @@ class Constants:
         :param enzyme_conc: Enzyme concentration (in M)
         :return: observed rate constant (in min-1)
         """
-        k_obs = kcat * enzyme_conc / (Km * enzyme_conc)  # in s-1
+        k_obs = kcat * enzyme_conc / (Km + enzyme_conc)  # in s-1
 
         # Convert to min-1
         return k_obs * 60
@@ -121,9 +126,9 @@ class Constants:
         # 2. https://www.sciencedirect.com/science/article/abs/pii/S0731708503005661
         # 3. https://pubs.acs.org/doi/abs/10.1021/bi048252q
         kcat_plm_1 = 2.3          # s-1 (ref 1, above)
-        Km_plm_1 = 0.49 * 10**-6  # (ref 1, above)
+        Km_plm_1 = 0.49e-6  # (ref 1, above)
         kcat_plm_2 = 11           # # s-1 (ref 2, above)
-        Km_plm_2 = 2.6 * 10**-6   # (ref 2, above)
+        Km_plm_2 = 2.6e-6   # (ref 2, above)
         kcat_hap = 0.1            # s-1 (ref 1, above).
         Km_hap = 0.0              # Km is unknown and is set to 0
 
