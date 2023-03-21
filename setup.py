@@ -2,6 +2,8 @@ from setuptools import find_packages, setup
 
 app_requirements = [
     'loguru>=0.6',
+    'numpy>=1.24.2',
+    'scipy>=1.10.1'
 ]
 
 dev_requirements = [

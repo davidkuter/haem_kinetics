@@ -6,3 +6,9 @@
 #
 loguru==0.6.0
     # via haem-kinetics (setup.py)
+numpy==1.24.2
+    # via
+    #   haem-kinetics (setup.py)
+    #   scipy
+scipy==1.10.1
+    # via haem-kinetics (setup.py)
