@@ -12,7 +12,8 @@ class Model1:
     """
     def __int__(self):
         # Grab the constants required to integrate equations
-        self.const = Constants().compute_values()
+        self.const = Constants()
+        self.const.compute_values()
 
         # Initialise variables to store output
         self.conc_hb_dv = 0.0  # Concentration of Haemoglobin in the digestive vacuole
@@ -57,12 +58,17 @@ class Model1:
         # Formation
         return self.const.k_hz * self.conc_fe3pp
 
-    def compute(self):
+    def compute(self, t, init):
         """
-
+        Reference for creating integratable function. WIP
+        https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html
         :return:
         """
-        self.conc_hb_dv = self._d_hb_dv()
-        self.conc_fe2pp = self._d_fe2pp()
-        self.conc_fe3pp = self._d_fe3pp()
-        self.conc_hz = self._d_hz()
+        # Set initial values
+        self.conc_hb_dv = init[0]  # Concentration of Haemoglobin in the digestive vacuole
+        self.conc_fe2pp = init[1]  # Concentration of Free Fe(II) haem
+        self.conc_fe3pp = init[2]  # Concentration of Free Fe(III) haem
+        self.conc_hz = init[3]     # Concentratin of haemozoin
+
+        # Return list of differential equations
+        return [self._d_hb_dv(), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
