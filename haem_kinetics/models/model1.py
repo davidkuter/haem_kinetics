@@ -1,4 +1,5 @@
-from haem_kinetics.components.constants import Constants
+from typing import List, Optional
+
 from haem_kinetics.models.base import KineticsModel
 
 
@@ -11,13 +12,8 @@ class Model1(KineticsModel):
     levels as measured by Combrink et al. Consequently, an alteration to the model was necessary which is
     described in Model 2.
     """
-    def __int__(self):
-        # Set model name
-        self.model_name = 'Model 1'
-
-        # Grab the constants required to integrate equations
-        self.const = Constants()
-        self.const.compute_values()
+    def __int__(self, model_name='Model 1'):
+        super().__init__(self, model_name)
 
         # Initialise concentrations
         self._set_initial_conc(init=[0.0, 0.0, 0.0, 0.0])
@@ -59,7 +55,7 @@ class Model1(KineticsModel):
         # Formation
         return self.const.k_hz * self.initial_values['conc_fe3pp']
 
-    def _set_initial_conc(self, init: list[float]):
+    def _set_initial_conc(self, init: List[float]):
         """
         Sets the initial concentrations of haem species to be integrated
 
@@ -82,7 +78,7 @@ class Model1(KineticsModel):
         """
         self.differential_eqs.extend = [self._d_hb_dv(), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
 
-    def run(self, t, init, kwargs):
+    def run(self, t, init: Optional[List[float]] = None, **kwargs):
         """
 
         :param t:
@@ -90,6 +86,11 @@ class Model1(KineticsModel):
         :param kwargs:
         :return:
         """
+        if init is None:
+            init = [0.0, 0.0, 0.0, 0.0]
+
+        if kwargs is False:
+            kwargs = {}
 
         # Solve the differential equations
         self._solve(t, init, **kwargs)

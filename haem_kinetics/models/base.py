@@ -1,10 +1,17 @@
-import numpy as np
-
 from scipy.integrate import solve_ivp
+
+from haem_kinetics.components.constants import Constants
 
 
 class KineticsModel:
-    def __int__(self):
+    def __int__(self, model_name):
+
+        # General
+        self.model_name = model_name
+
+        # Grab the constants required to integrate equations
+        self.const = Constants()
+        self.const.compute_values()
 
         # To be solved
         self.initial_values = {}    # Stores initial concentrations of haem species using in integration
@@ -32,7 +39,7 @@ class KineticsModel:
         """
         raise NotImplementedError('_set_diff_eqs must be overwritten by the model class')
 
-    def _integrate(self, t, init) -> np.array[np.array]:
+    def _integrate(self, t, init):
         """
         Function that will integrate differential equations for the model. The differential equations must be set
         by within the model but adding them to the self.differential_eqs list.
@@ -51,7 +58,7 @@ class KineticsModel:
 
         return self.differential_eqs
 
-    def _solve(self, t, init, kwargs):
+    def _solve(self, t, init, **kwargs):
         """
         Performs integration of differential equations for a model. Reference used for setting this up:
         https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html
