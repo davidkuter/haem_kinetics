@@ -12,8 +12,8 @@ class Model1(KineticsModel):
     levels as measured by Combrink et al. Consequently, an alteration to the model was necessary which is
     described in Model 2.
     """
-    def __int__(self, model_name='Model 1'):
-        super().__init__(self, model_name)
+    def __init__(self, model_name: str = 'Model 1'):
+        super().__init__(model_name=model_name)
 
         # Initialise concentrations
         self._set_initial_conc(init=[0.0, 0.0, 0.0, 0.0])
@@ -76,7 +76,7 @@ class Model1(KineticsModel):
         Adds the differential equations to the list that will be integrated.
         :return:
         """
-        self.differential_eqs.extend = [self._d_hb_dv(), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
+        self.differential_eqs.extend([self._d_hb_dv(), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()])
 
     def run(self, t, init: Optional[List[float]] = None, **kwargs):
         """

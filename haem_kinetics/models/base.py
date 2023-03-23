@@ -4,7 +4,7 @@ from haem_kinetics.components.constants import Constants
 
 
 class KineticsModel:
-    def __int__(self, model_name):
+    def __init__(self, model_name):
 
         # General
         self.model_name = model_name
