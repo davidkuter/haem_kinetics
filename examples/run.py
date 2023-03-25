@@ -1,21 +1,14 @@
-from scipy.integrate import solve_ivp
-
 from haem_kinetics.models.model1 import Model1
 
-# def integrate(t, init):
-#     model._set_initial_conc(init=init)
-#     return model.differential_eqs
-#
-#
-# model = Model1()
-#
-# solution = solve_ivp(integrate, [0, 1000], [0.0, 0.0, 0.0, 0.0])
+t_start = 0
+t_end = 1760
+t_step = 20
 
 model = Model1()
-print(dir(model))
-print(model.initial_values)
-model.run(t=[0, 1000], init=[0.0, 0.0, 0.0, 0.0])
+model.run(t=[t_start, t_end], init=[0.0, 0.0, 0.0, 0.0], t_eval=range(t_start, t_end, t_step), plot='test.png')
 
-print(model.solution)
+print(model.initial_values)
+print(model.differential_eqs)
 print(model.time)
 print(model.concentrations)
+

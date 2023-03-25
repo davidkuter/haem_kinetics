@@ -9,7 +9,7 @@ class Constants:
         self.conc_hb_rbc = 0.0
         # - Concentration of oxygen [O2]
         #   From Prof. Egan: "Based on Hb saturation curve (30% at 3% O2)"
-        self.conc_oxy = 1e3  # Molar
+        self.conc_oxy = 1e-3  # Molar
         # - Concentration of superoxide [O2-]
         #   We assume this to be 0 because of superoxide dismutase
         self.conc_supoxy = 0  # Molar

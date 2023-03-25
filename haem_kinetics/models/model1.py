@@ -1,3 +1,6 @@
+import pandas as pd
+
+from scipy.integrate import solve_ivp
 from typing import List, Optional
 
 from haem_kinetics.models.base import KineticsModel
@@ -45,7 +48,7 @@ class Model1(KineticsModel):
         form = self.const.k_fe2pp_ox * self.initial_values['conc_fe2pp'] * self.const.conc_oxy
 
         # Removal
-        remove = (self.const.k_fe3pp_red * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy) +\
+        remove = (self.const.k_fe3pp_red * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy) + \
                  (self.const.k_hz * self.initial_values['conc_fe3pp'])
 
         return form - remove
@@ -71,18 +74,31 @@ class Model1(KineticsModel):
         self.initial_values['conc_fe3pp'] = init[2]  # Concentration of Free Fe(III) haem
         self.initial_values['conc_hz'] = init[3]     # Concentration of haemozoin
 
-    def _set_diff_eqs(self):
+    def _integrate(self, t, init):
         """
-        Adds the differential equations to the list that will be integrated.
-        :return:
-        """
-        self.differential_eqs.extend([self._d_hb_dv(), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()])
+        Function that will integrate differential equations for the model. The differential equations must be set
+        by within the model but adding them to the self.differential_eqs list.
 
-    def run(self, t, init: Optional[List[float]] = None, **kwargs):
+        :param t: Time range that will be integrated over
+        :param init: Initial values for haem concentrations (Order matters!)
+        :return: returns concentrations for each haem species in the model at each time point. E.g.:
+                   t0      t1      t2     t3     t4
+                 [
+                  [0.    0.001    0.01   0.02   0.03]     # Haem species 1
+                  [0.    0.       0.001  0.002  0.003]    # Haem species 2
+                 ]
+        """
+        # Set initial concentration values
+        self._set_initial_conc(init=init)
+
+        return [self._d_hb_dv(), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
+
+    def run(self, t, init: Optional[List[float]] = None, plot: Optional[str] = None, **kwargs):
         """
 
         :param t:
         :param init:
+        :param plot: [Optional] Name of file to save plot to. If None, no plot is generated.
         :param kwargs:
         :return:
         """
@@ -93,7 +109,11 @@ class Model1(KineticsModel):
             kwargs = {}
 
         # Solve the differential equations
-        self._solve(t, init, **kwargs)
+        self.solution = solve_ivp(self._integrate, t, init, **kwargs)
+        self.time = 16 + self.solution.t / 60  # In hours, offset by 16 for parasite life-cycle
+        self.concentrations = pd.DataFrame(self.solution.y, columns=self.time, index=list(self.initial_values.keys())).T
+        self.concentrations = self.concentrations * 1000 * 0.2232  # convert to fg/cell
 
         # Plot graph
-        self._plot()
+        if plot:
+            self._plot(save_file=plot)
