@@ -19,7 +19,8 @@ class Constants:
         # -------------------------------------------------------------------------------------
         # - Estimated Rate constant for the transport of haemoglobin in the digestive vacuole
         #   DKuter (2023-03): I think this is an estimation from a Roepe paper?
-        self.k_hb_trans = 0.0045  # min-1
+        # self.k_hb_trans = 0.0011  # M.min-1
+        self.k_hb_trans = 0.004  # M.min-1
         # - Observed rate constant for the degradation of haemoglobin
         self.k_hb_deg = 0.0
         # - Rate of Fe(II) haem oxidation by O2
@@ -38,13 +39,12 @@ class Constants:
         self.avogadro = 6.022e23
 
         # - Volumes
-        self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
+        # self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
         self.vol_dv = 4e-15  # Volume of digestive vacuole is 4 fL, reported here in L
+        # self.vol_dv = 1e-15  # Volume of digestive vacuole is 4 fL, reported here in L
 
         # - Other
-        # ToDo: Replace num_prots with that determined by the Egan lab for malaria
-        #       parasites.
-        self. num_prots = 2e8  # Average number of proteins in a Yeast cell
+        self. num_prots = 1.9e8  # Average number of proteins in a Yeast cell
 
     def _dv_ppm_to_molar(self, ppm) -> float:
         """
@@ -72,17 +72,11 @@ class Constants:
 
         # Average haemoglobin concentration in the RBC from:
         # https://medlineplus.gov/ency/article/003648.htm
-        hb_conc = 29  # pg.cell-1
+        hb_conc = 34  # g.dL-1
+        hb_conc = hb_conc / 0.1  # There are 0.1 dL in 1 L
 
-        # Convert pg hemoglobin to fmol - pg:fmol = 1: 0.06207
-        # See reference 3 on wikipedia page:
-        # https://en.wikipedia.org/wiki/Mean_corpuscular_hemoglobin
-        hb_conc = hb_conc * 0.06207
-
-        # Convert from fmol.cell-1 to mol.L-1 (M)
-        # First convert from fmol to mol
-        hb_conc = (hb_conc * 10**-15)
-        hb_conc = hb_conc / self.vol_rbc
+        # Convert to Molar by dividing by MW of Hb
+        hb_conc = hb_conc / 64_500
 
         # Convert from per haemoglobin molecule to per haem
         self.conc_hb_rbc = hb_conc * 4

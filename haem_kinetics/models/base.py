@@ -4,6 +4,7 @@ import pandas as pd
 from typing import List, Optional
 
 from haem_kinetics.components.constants import Constants
+from haem_kinetics.components.experimental_data import ExperimentalData
 
 
 class KineticsModel:
@@ -35,7 +36,7 @@ class KineticsModel:
         raise NotImplementedError('_set_initial_conc must be overwritten by the model class')
 
     # ToDo: Implement later
-    def _plot(self, save_file: str, columns: Optional[List[str]] = None):
+    def _plot(self, save_file: str, columns: Optional[List[str]] = None, exp_data: Optional[ExperimentalData] = None):
         # Set which data will be plotted
         df_plot = self.concentrations if columns is None else self.concentrations[columns]
 
@@ -46,11 +47,19 @@ class KineticsModel:
 
         # Plot Hz
         axes[1].plot(df_plot.index, df_plot['conc_hz'], 'r', label='conc_hz')
+        if exp_data:
+            axes[1].errorbar(exp_data.data.index, exp_data.data['Hz'], yerr=exp_data.data['Hz:SEM'].values,
+                             label='Exp Hz', fmt="o", mfc='white', ecolor='r', color='r')
         axes[1].legend(loc='upper right')
 
         # Plot remaining Haem species
         cols = [col for col in df_plot.columns if col != 'conc_hz']
         axes[0].plot(df_plot.index, df_plot[cols], label=cols)
+        if exp_data:
+            axes[0].errorbar(exp_data.data.index, exp_data.data['Hm'], yerr=exp_data.data['Hm:SEM'].values,
+                             label='Exp Haem', fmt="o", mfc='white', ecolor='g', color='g')
+            axes[0].errorbar(exp_data.data.index, exp_data.data['Hb'], yerr=exp_data.data['Hb:SEM'].values,
+                             label='Exp Hb', fmt="o", mfc='white', ecolor='b', color='b')
         axes[0].legend(loc='upper right')
 
         # Format

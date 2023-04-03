@@ -4,6 +4,7 @@ from scipy.integrate import solve_ivp
 from typing import List, Optional
 
 from haem_kinetics.models.base import KineticsModel
+from haem_kinetics.components.experimental_data import ExperimentalData
 
 
 class Model1(KineticsModel):
@@ -21,20 +22,25 @@ class Model1(KineticsModel):
         # Initialise concentrations
         self._set_initial_conc(init=[0.0, 0.0, 0.0, 0.0])
 
+        # Set Experimental data
+        self.exp_data = ExperimentalData()
+        # self.exp_data.no_drug_nf54()
+        self.exp_data.no_drug_dd2()
+
     def _d_hb_dv(self):
 
         # Formation
         form = self.const.k_hb_trans * self.const.conc_hb_rbc
 
         # Removal
-        remove = self.const.k_hb_deg * self.initial_values['conc_hb_dv']
+        remove = self.const.k_hb_deg * self.initial_values['conc_hb_dv'] / 4
 
         return form - remove
 
     def _d_fe2pp(self):
 
         # Formation
-        form = (self.const.k_hb_deg * self.initial_values['conc_hb_dv']) + \
+        form = (self.const.k_hb_deg * self.initial_values['conc_hb_dv'] / 4) + \
                (self.const.k_fe3pp_red * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy)
 
         # Removal
@@ -116,4 +122,4 @@ class Model1(KineticsModel):
 
         # Plot graph
         if plot:
-            self._plot(save_file=plot)
+            self._plot(save_file=plot, exp_data=self.exp_data)
