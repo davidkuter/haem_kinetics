@@ -36,12 +36,14 @@ class KineticsModel:
         raise NotImplementedError('_set_initial_conc must be overwritten by the model class')
 
     # ToDo: Implement later
-    def _plot(self, save_file: str, columns: Optional[List[str]] = None, exp_data: Optional[ExperimentalData] = None):
+    def _plot(self, save_file: str, title: str, columns: Optional[List[str]] = None,
+              exp_data: Optional[ExperimentalData] = None):
         # Set which data will be plotted
         df_plot = self.concentrations if columns is None else self.concentrations[columns]
 
         # Set up plot
         fig, axes = plt.subplots(1, 2, figsize=(20, 10))
+        fig.suptitle(title, fontsize=16)
         x_range = range(int(self.time[-1]), int(self.time[0]), -5)
         plt.setp(axes, xticks=x_range, xlabel='Time (hrs)', ylabel='Fe (fg/cell)')
 
@@ -57,7 +59,7 @@ class KineticsModel:
         axes[0].plot(df_plot.index, df_plot[cols], label=cols)
         if exp_data:
             axes[0].errorbar(exp_data.data.index, exp_data.data['Hm'], yerr=exp_data.data['Hm:SEM'].values,
-                             label='Exp Haem', fmt="o", mfc='white', ecolor='g', color='g')
+                             label='Exp Haem', fmt="o", mfc='white', ecolor='orange', color='orange')
             axes[0].errorbar(exp_data.data.index, exp_data.data['Hb'], yerr=exp_data.data['Hb:SEM'].values,
                              label='Exp Hb', fmt="o", mfc='white', ecolor='b', color='b')
         axes[0].legend(loc='upper right')

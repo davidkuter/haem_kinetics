@@ -19,8 +19,8 @@ class Constants:
         # -------------------------------------------------------------------------------------
         # - Estimated Rate constant for the transport of haemoglobin in the digestive vacuole
         #   DKuter (2023-03): I think this is an estimation from a Roepe paper?
-        # self.k_hb_trans = 0.0011  # M.min-1
-        self.k_hb_trans = 0.004  # M.min-1
+        self.k_hb_trans = 0.0011  # M.min-1
+
         # - Observed rate constant for the degradation of haemoglobin
         self.k_hb_deg = 0.0
         # - Rate of Fe(II) haem oxidation by O2
@@ -28,23 +28,29 @@ class Constants:
         self.k_fe2pp_ox = 193_800  # min-1
         # - Rate of Fe(III) haem reduction by O2-
         #   This is an unknown value but doesn't matter when we assume [O2-] is 0 (see above)
-        self.k_fe3pp_red = 0
+        self.k_fe3pp_red = 180e-9
         # - Rate of haemozoin formation
         #   https://link.springer.com/article/10.1186/1475-2875-11-337
-        self.k_hz = 0.45  # min-1
+        self.k_hz = 0.12  # min-1
+
+        # -------------------------------------------------------------------------------------
+        # Equilibrium constants
+        # -------------------------------------------------------------------------------------
+        self.K_partition = 398  # Fe(III)PPIX lipid partitioning coefficient
 
         # -------------------------------------------------------------------------------------
         # Miscellaneous Constants
         # -------------------------------------------------------------------------------------
         self.avogadro = 6.022e23
+        self.fudge = 10  # Fudge factor
 
         # - Volumes
         # self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
-        self.vol_dv = 4e-15  # Volume of digestive vacuole is 4 fL, reported here in L
-        # self.vol_dv = 1e-15  # Volume of digestive vacuole is 4 fL, reported here in L
+        self.vol_dv = 1e-15  # Volume of digestive vacuole is 4 fL, reported here in L
+        self.vol_fract_lip = 0.016  # Fractional volume of a lipid nanosphere relative to the DV volume
 
         # - Other
-        self. num_prots = 1.9e8  # Average number of proteins in a Yeast cell
+        self.num_prots = 1.9e8  # Average number of proteins in a P.falciparium
 
     def _dv_ppm_to_molar(self, ppm) -> float:
         """
@@ -79,7 +85,7 @@ class Constants:
         hb_conc = hb_conc / 64_500
 
         # Convert from per haemoglobin molecule to per haem
-        self.conc_hb_rbc = hb_conc * 4
+        self.conc_hb_rbc = hb_conc * 4 * self.fudge
 
     @staticmethod
     def _compute_kobs(kcat: float, Km: float, enzyme_conc: float) -> float:
@@ -133,6 +139,10 @@ class Constants:
 
         # Compute the overall observed rate constant for haemoglobin degradation
         self.k_hb_deg = k_obs_plm_1*conc_plm_1 + k_obs_plm_2*conc_plm_2 + k_obs_hap*conc_hap
+
+    def compute_lipid_seq_constant(self):
+        # return 1 / (1 + (self.vol_fract_lip * self.K_partition))
+        return (1 - self.vol_fract_lip) / (1 + self.vol_fract_lip + (self.vol_fract_lip * self.K_partition))
 
     def compute_values(self):
 
