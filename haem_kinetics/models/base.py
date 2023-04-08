@@ -43,8 +43,16 @@ class KineticsModel:
 
         # Set up plot
         fig, axes = plt.subplots(1, 2, figsize=(20, 10))
-        fig.suptitle(title, fontsize=16)
+        font_size = 16
+        plt.rcParams.update({'font.size': font_size})
+        fig.suptitle(title, fontsize=font_size + 8)
         x_range = range(int(self.time[-1]), int(self.time[0]), -5)
+        for ax in axes:
+            ax.xaxis.label.set_fontsize(font_size)
+            ax.yaxis.label.set_fontsize(font_size)
+            ax.tick_params(axis='x', labelsize=font_size)
+            ax.tick_params(axis='y', labelsize=font_size)
+
         plt.setp(axes, xticks=x_range, xlabel='Time (hrs)', ylabel='Fe (fg/cell)')
 
         # Plot Hz
