@@ -7,7 +7,7 @@ from haem_kinetics.models.base import KineticsModel
 from haem_kinetics.components.experimental_data import ExperimentalData
 
 
-class Model1(KineticsModel):
+class Model2(KineticsModel):
     """
     This is the simplest model to simulate haemoglobin catabolism in the malaria parasite.
     In this case, we have assumed O2- is effectively 0 M given the presence of SOD, thus the reduction of
@@ -16,7 +16,7 @@ class Model1(KineticsModel):
     levels as measured by Combrink et al. Consequently, an alteration to the model was necessary which is
     described in Model 2.
     """
-    def __init__(self, model_name: str = 'Model 1'):
+    def __init__(self, model_name: str = 'Model 2'):
         super().__init__(model_name=model_name)
 
         # Initialise concentrations
@@ -41,7 +41,8 @@ class Model1(KineticsModel):
 
         # Formation
         form = (self.const.k_hb_deg * self.initial_values['conc_hb_dv'] / 4) + \
-               (self.const.k_fe3pp_red * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy)
+               (self.const.k_fe3pp_red * self.const.compute_lipid_seq_constant()
+                * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy)
 
         # Removal
         remove = self.const.k_fe2pp_ox * self.initial_values['conc_fe2pp'] * self.const.conc_oxy
@@ -54,15 +55,16 @@ class Model1(KineticsModel):
         form = self.const.k_fe2pp_ox * self.initial_values['conc_fe2pp'] * self.const.conc_oxy
 
         # Removal
-        remove = (self.const.k_fe3pp_red * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy) + \
-                 (self.const.k_hz * self.initial_values['conc_fe3pp'])
+        remove = (self.const.k_fe3pp_red * self.const.compute_lipid_seq_constant()
+                  * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy) + \
+                 (self.const.k_hz * self.const.compute_lipid_seq_constant() * self.initial_values['conc_fe3pp'])
 
         return form - remove
 
     def _d_hz(self):
 
         # Formation
-        return self.const.k_hz * self.initial_values['conc_fe3pp']
+        return self.const.k_hz * self.const.compute_lipid_seq_constant() * self.initial_values['conc_fe3pp']
 
     def _set_initial_conc(self, init: List[float]):
         """
@@ -122,4 +124,5 @@ class Model1(KineticsModel):
 
         # Plot graph
         if plot:
-            self._plot(save_file=plot, title=self.model_name, exp_data=self.exp_data)
+            self._plot(save_file=plot, title=self.model_name, exp_data=self.exp_data,
+                       columns=['conc_hb_dv', 'conc_hz', 'conc_fe3pp'])

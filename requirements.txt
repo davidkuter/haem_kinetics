@@ -4,8 +4,7 @@
 #
 #    pip-compile
 #
--e file:///mnt/d/Data/Coding/haem_kinetics
-    # via -r requirements.in
+
 attrs==22.2.0
     # via pytest
 contourpy==1.0.7
