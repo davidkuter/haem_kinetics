@@ -8,7 +8,7 @@ from haem_kinetics.models.base import KineticsModel
 from haem_kinetics.components.experimental_data import ExperimentalData
 
 
-class Model3(KineticsModel):
+class Model4(KineticsModel):
     """
     This is the simplest model to simulate haemoglobin catabolism in the malaria parasite.
     In this case, we have assumed O2- is effectively 0 M given the presence of SOD, thus the reduction of
@@ -17,7 +17,7 @@ class Model3(KineticsModel):
     levels as measured by Combrink et al. Consequently, an alteration to the model was necessary which is
     described in Model 2.
     """
-    def __init__(self, model_name: str = 'Model 3'):
+    def __init__(self, model_name: str = 'Model 4'):
         super().__init__(model_name=model_name)
 
         # Initialise concentrations
@@ -28,6 +28,34 @@ class Model3(KineticsModel):
         # self.exp_data.no_drug_nf54()
         self.exp_data.no_drug_dd2()
 
+    def _calc_enzyme_rate(self, enzyme, conc_hb_dv):
+        kcat = self.const.k_enzymes[enzyme]['kcat']
+        Km = self.const.k_enzymes[enzyme]['Km']
+        conc_enzyme = self.const.conc_enzymes[enzyme]
+        denom = Km + conc_hb_dv
+
+        if denom == 0:
+            return 0
+        else:
+            return kcat * conc_enzyme / denom
+
+    def _hb_removal(self):
+        """
+        Haemoglobin degradation by enzymes
+        :return:
+        """
+        conc_hb_dv = self.initial_values['conc_hb_dv'] / 4
+        plm_1_deg = self._calc_enzyme_rate(enzyme='plm_1',
+                                           conc_hb_dv=conc_hb_dv)
+        plm_2_deg = self._calc_enzyme_rate(enzyme='plm_2',
+                                           conc_hb_dv=conc_hb_dv)
+        hap_deg = self._calc_enzyme_rate(enzyme='hap',
+                                         conc_hb_dv=conc_hb_dv)
+        plm_4_deg = self._calc_enzyme_rate(enzyme='plm_4',
+                                           conc_hb_dv=conc_hb_dv)
+        conc_hb_dv = self.initial_values['conc_hb_dv']
+        return (plm_1_deg + plm_2_deg + hap_deg + plm_4_deg) * conc_hb_dv
+
     def _d_hb_dv_dirkie(self, t):
 
         # Formation
@@ -37,7 +65,8 @@ class Model3(KineticsModel):
         form = a * b * (math.e ** (b * t)) / 55.845
 
         # Removal
-        remove = self.const.k_hb_deg * self.initial_values['conc_hb_dv'] / 4
+
+        remove = self._hb_removal()
 
         return form - remove
 
@@ -51,7 +80,7 @@ class Model3(KineticsModel):
         form = a * b * (math.e ** (b * t))
 
         # Removal
-        remove = self.const.k_hb_deg * self.initial_values['conc_hb_dv'] / 4
+        remove = self._hb_removal()
 
         return form - remove
 
@@ -69,14 +98,14 @@ class Model3(KineticsModel):
         form = h * (top - bot) * (math.e ** (h * (k - ln_t))) / denom
 
         # Removal
-        remove = self.const.k_hb_deg * self.initial_values['conc_hb_dv'] / 4
+        remove = self._hb_removal()
 
         return form - remove
 
     def _d_fe2pp(self):
 
         # Formation
-        form = (self.const.k_hb_deg * self.initial_values['conc_hb_dv'] / 4) + \
+        form = (self._hb_removal()) + \
                (self.const.k_fe3pp_red * self.const.compute_lipid_seq_constant() * self.initial_values['conc_fe3pp'])
 
         # Removal
@@ -134,10 +163,9 @@ class Model3(KineticsModel):
         # Set initial concentration values
         self._set_initial_conc(init=init)
 
-        # return [self._d_hb_dv_dirkie(t), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
-        return [self._d_hb_dv_kuter(t), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
+        return [self._d_hb_dv_dirkie(t), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
+        # return [self._d_hb_dv_kuter(t), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
         # return [self._d_hb_dv_sigmoid(t), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
-
 
     def run(self, t, init: Optional[List[float]] = None, plot: Optional[str] = None, **kwargs):
         """
