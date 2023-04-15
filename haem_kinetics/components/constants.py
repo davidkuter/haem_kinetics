@@ -112,14 +112,16 @@ class Constants:
         :return:
         """
         # Values of enzyme concentrations (ppm) were obtained from paxDB
-        conc_plm_1 = 754   # Plasmepsin I
-        conc_plm_2 = 585   # Plasmepsin II
-        conc_hap = 1_373   # Histo-aspartic protease
+        conc_plm_1 = 754    # Plasmepsin I
+        conc_plm_2 = 585    # Plasmepsin II
+        conc_hap = 1_373    # Histo-aspartic protease
+        conc_plm_4 = 1_377  # Plasmepsin IV
 
         # Convert enzyme concentrations from ppm to M
         conc_plm_1 = self._dv_ppm_to_molar(ppm=conc_plm_1)
         conc_plm_2 = self._dv_ppm_to_molar(ppm=conc_plm_2)
         conc_hap = self._dv_ppm_to_molar(ppm=conc_hap)
+        conc_plm_4 = self._dv_ppm_to_molar(ppm=conc_plm_4)
 
         # Values of rate constants obtained from:
         # 1. https://www.sciencedirect.com/science/article/pii/0166685196026515
@@ -131,14 +133,19 @@ class Constants:
         Km_plm_2 = 2.6e-6   # (ref 2, above)
         kcat_hap = 0.1            # s-1 (ref 1, above).
         Km_hap = 0.0              # Km is unknown and is set to 0
+        kcat_plm_4 = 1.05  # s-1
+        Km_plm_4 = 0.33e-6
 
         # Convert from Michaelis–Menten to k observed
         k_obs_plm_1 = self._compute_kobs(kcat=kcat_plm_1, Km=Km_plm_1, enzyme_conc=conc_plm_1)
         k_obs_plm_2 = self._compute_kobs(kcat=kcat_plm_2, Km=Km_plm_2, enzyme_conc=conc_plm_2)
         k_obs_hap = self._compute_kobs(kcat=kcat_hap, Km=Km_hap, enzyme_conc=conc_hap)
+        k_obs_plm_4 = self._compute_kobs(kcat=kcat_plm_4, Km=Km_plm_4, enzyme_conc=conc_plm_4)
 
         # Compute the overall observed rate constant for haemoglobin degradation
-        self.k_hb_deg = k_obs_plm_1*conc_plm_1 + k_obs_plm_2*conc_plm_2 + k_obs_hap*conc_hap
+        # self.k_hb_deg = k_obs_plm_1*conc_plm_1 + k_obs_plm_2*conc_plm_2 + k_obs_hap*conc_hap
+        self.k_hb_deg = k_obs_plm_1 * conc_plm_1 + k_obs_plm_2 * conc_plm_2 + k_obs_hap * conc_hap + \
+                        k_obs_plm_4 * conc_plm_4
 
     def compute_lipid_seq_constant(self):
         # return 1 / (1 + (self.vol_fract_lip * self.K_partition))
