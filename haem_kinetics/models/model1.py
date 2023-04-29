@@ -154,4 +154,5 @@ class Model1(KineticsModel):
 
         # Plot graph
         if plot:
-            self._plot(save_file=plot, title=self.model_name, exp_data=self.exp_data)
+            self._plot(save_file=plot, title=self.model_name, exp_data=self.exp_data,
+                       columns=['conc_hb_dv', 'conc_hz', 'conc_fe3pp'])

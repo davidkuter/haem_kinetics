@@ -10,22 +10,55 @@ from haem_kinetics.components.experimental_data import ExperimentalData
 class Model2(KineticsModel):
     """
     This is the simplest model to simulate haemoglobin catabolism in the malaria parasite.
-    In this case, we have assumed O2- is effectively 0 M given the presence of SOD, thus the reduction of
-    Fe(III)PP is ignored. While this model correctly predicts an increase in Hz formation over a time period
-    that is relevant to the life cycle of the troph, it is unable to account for the basal “free haem”
-    levels as measured by Combrink et al. Consequently, an alteration to the model was necessary which is
-    described in Model 2.
+    In this case, we have assumed:
+     * Linear transport of Hb into the DV
+     * Hb enzymatic degradation is rate-limited by HAP
+     * There is fudge factor to lower enzyme concentration or kcat.
+     * O2- is effectively 0 M given the presence of SOD, thus the reduction of Fe(III)PP is ignored.
+     * A portion of Fe3PPIX is sequestered in a lipid droplet
     """
     def __init__(self, model_name: str = 'Model 2'):
         super().__init__(model_name=model_name)
 
         # Initialise concentrations
-        self._set_initial_conc(init=[0.0, 0.0, 0.0, 0.0])
+        self._set_initial_conc(init=[0.005, 0.0, 0.0, 0.0])
 
         # Set Experimental data
         self.exp_data = ExperimentalData()
         # self.exp_data.no_drug_nf54()
         self.exp_data.no_drug_dd2()
+
+    def _calc_enzyme_rate(self, enzyme, conc_hb_dv):
+        kcat = self.const.k_enzymes[enzyme]['kcat'] * 60  # Converts s-1 to min-1
+        Km = self.const.k_enzymes[enzyme]['Km']
+        conc_enzyme = self.const.conc_enzymes[enzyme] / self.const.fudge
+        denom = Km + conc_hb_dv
+
+        if denom == 0:
+            return 0
+        else:
+            return kcat * conc_enzyme / denom
+
+    def _hb_removal(self):
+        """
+        Haemoglobin degradation by enzymes
+        :return:
+        """
+        conc_hb_dv = self.initial_values['conc_hb_dv'] / 4
+        # plm_1_deg = self._calc_enzyme_rate(enzyme='plm_1',
+        #                                    conc_hb_dv=conc_hb_dv)
+        # plm_2_deg = self._calc_enzyme_rate(enzyme='plm_2',
+        #                                    conc_hb_dv=conc_hb_dv)
+        hap_deg = self._calc_enzyme_rate(enzyme='hap',
+                                         conc_hb_dv=conc_hb_dv)
+        # plm_4_deg = self._calc_enzyme_rate(enzyme='plm_4',
+        #                                    conc_hb_dv=conc_hb_dv)
+        conc_hb_dv = self.initial_values['conc_hb_dv']
+
+        # removal = (plm_1_deg + plm_2_deg + hap_deg + plm_4_deg) * conc_hb_dv
+        # removal = (plm_1_deg + plm_2_deg) * conc_hb_dv
+        removal = hap_deg * conc_hb_dv
+        return removal
 
     def _d_hb_dv(self):
 
@@ -33,14 +66,14 @@ class Model2(KineticsModel):
         form = self.const.k_hb_trans * self.const.conc_hb_rbc
 
         # Removal
-        remove = self.const.k_hb_deg * self.initial_values['conc_hb_dv'] / 4
+        remove = self._hb_removal()
 
         return form - remove
 
     def _d_fe2pp(self):
 
         # Formation
-        form = (self.const.k_hb_deg * self.initial_values['conc_hb_dv'] / 4) + \
+        form = self._hb_removal() + \
                (self.const.k_fe3pp_red * self.const.compute_lipid_seq_constant()
                 * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy)
 

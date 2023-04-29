@@ -70,12 +70,12 @@ class KineticsModel:
                              label='Exp Haem', fmt="o", mfc='white', ecolor='orange', color='orange')
             axes[0].errorbar(exp_data.data.index, exp_data.data['Hb'], yerr=exp_data.data['Hb:SEM'].values,
                              label='Exp Hb', fmt="o", mfc='white', ecolor='b', color='b')
-        axes[0].legend(loc='upper right')
+        axes[0].legend(loc='upper left')
 
         # Format
 
         # Save output
-        axes[1].legend(loc='upper right')
+        axes[1].legend(loc='upper left')
         plt.savefig(save_file)
 
     def run(self, t, init, kwargs):
