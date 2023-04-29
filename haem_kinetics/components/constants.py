@@ -6,7 +6,7 @@ class Constants:
         # Miscellaneous Constants
         # -------------------------------------------------------------------------------------
         self.avogadro = 6.022e23
-        self.fudge = 10  # Fudge factor
+        self.fudge = 45.5  # Fudge factor
 
         # - Volumes
         # self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
@@ -20,7 +20,7 @@ class Constants:
         # Concentrations
         # -------------------------------------------------------------------------------------
         # - Concentration of haemoglobin in the red blood cell (RBC)
-        self.conc_hb_rbc = 0.0
+        self.conc_hb_rbc = 20e-3
         # - Concentration of oxygen [O2]
         #   From Prof. Egan: "Based on Hb saturation curve (30% at 3% O2)"
         self.conc_oxy = 1e-3  # Molar
@@ -39,7 +39,8 @@ class Constants:
         # -------------------------------------------------------------------------------------
         # - Estimated Rate constant for the transport of haemoglobin in the digestive vacuole
         #   DKuter (2023-03): I think this is an estimation from a Roepe paper?
-        self.k_hb_trans = 0.0011  # M.min-1
+        # This is the value needed to obtain ~100 fg/cell Hb in the DV at t~45hrs
+        self.k_hb_trans = 0.011  # min-1
 
         # - Observed rate constant for the degradation of haemoglobin
         self.k_hb_deg = 0.0
@@ -61,7 +62,7 @@ class Constants:
                           'plm_2': {'kcat': 11,      # s-1 (ref 2)
                                     'Km': 2.6e-6},   # (ref 2)
                           'hap': {'kcat': 0.1,       # s-1 (ref 1)
-                                  'Km': 0},         # Km is unknown and is set to 0
+                                  'Km': 2.98e-7},
                           'plm_4': {'kcat': 1.05,    # s-1
                                     'Km': 0.33e-6}}
 
@@ -69,8 +70,6 @@ class Constants:
         # Equilibrium constants
         # -------------------------------------------------------------------------------------
         self.K_partition = 398  # Fe(III)PPIX lipid partitioning coefficient
-
-
 
     def _dv_ppm_to_molar(self, ppm) -> float:
         """
@@ -105,7 +104,7 @@ class Constants:
         hb_conc = hb_conc / 64_500
 
         # Convert from per haemoglobin molecule to per haem
-        self.conc_hb_rbc = hb_conc * 4 * self.fudge
+        self.conc_hb_rbc = hb_conc * 4
 
     @staticmethod
     def _compute_kobs(kcat: float, Km: float, enzyme_conc: float) -> float:
