@@ -31,7 +31,7 @@ class Degradation(KineticsModel):
     def _calc_enzyme_rate(self, enzyme, conc_hb_dv, t):
         kcat = self.const.k_enzymes[enzyme]['kcat'] * 60  # Converts s-1 to min-1
         Km = self.const.k_enzymes[enzyme]['Km']
-        conc_enzyme = self.const.conc_enzymes[enzyme] / self.const.fudge
+        conc_enzyme = self._fraction_exp_growth(t) * self.const.conc_enzymes[enzyme] / self.const.fudge
         # conc_enzyme = self.const.conc_enzymes[enzyme] * 5.9e-4 * t / self.const.fudge
         denom = Km + conc_hb_dv
 
@@ -61,13 +61,13 @@ class Degradation(KineticsModel):
         removal = hap_deg * conc_hb_dv
         return removal
 
-    def _d_hb_dv_linear(self):
-
-        form = self.const.k_hb_trans * self.const.conc_hb_rbc
-        # remove = self._hb_removal()
-        remove = 0
-
-        return form - remove
+    # def _d_hb_dv_linear(self):
+    #
+    #     form = self.const.k_hb_trans * self.const.conc_hb_rbc
+    #     # remove = self._hb_removal()
+    #     remove = 0
+    #
+    #     return form - remove
 
     # def _d_hb_dv_dirkie(self, t):
     #
@@ -83,20 +83,32 @@ class Degradation(KineticsModel):
     #
     #     return form - remove
 
-    # def _d_hb_dv_kuter(self, t):
-    #     """
-    #     abe^(bt)
-    #     :return:
-    #     """
-    #     a = 0.298 / 4
-    #     b = 0.001102
-    #     form = a * b * (math.e ** (b * t))
-    #
-    #     # Removal
-    #     remove = self._hb_removal(t=t)
-    #     # remove = 0
-    #
-    #     return form
+    @staticmethod
+    def _fraction_exp_growth(t):
+        """
+        Fractional exponential growth
+        :param t:
+        :return:
+        """
+        a = 0.1578
+        b = 0.001102
+        # return a * b * (math.e ** (b * t))
+        return a * (math.e ** (b * t))
+
+    def _d_hb_dv_kuter(self, t):
+        """
+        abe^(bt)
+        :return:
+        """
+        # tot_hb_conc = (self.const.conc_hb_rbc * self.const.vol_rbc / self.const.vol_dv)
+        tot_hb_conc = self.const.conc_hb_rbc / 40
+        form = self._fraction_exp_growth(t) * tot_hb_conc
+
+        # Removal
+        # remove = self._hb_removal(t=t)
+        remove = 0
+
+        return form - remove
 
     # def _d_hb_dv_sigmoid(self, t):
     #     """
@@ -155,8 +167,8 @@ class Degradation(KineticsModel):
         self._set_initial_conc(init=init)
 
         # return [self._d_hb_dv_dirkie(t), self._d_fe2pp()]
-        # return [self._d_hb_dv_kuter(t), self._d_fe2pp(t)]
-        return [self._d_hb_dv_linear(), self._d_fe2pp(t)]
+        return [self._d_hb_dv_kuter(t), self._d_fe2pp(t)]
+        # return [self._d_hb_dv_linear(), self._d_fe2pp(t)]
 
     def run(self, t, init: Optional[List[float]] = None, plot: Optional[str] = None, **kwargs):
         """
@@ -185,5 +197,5 @@ class Degradation(KineticsModel):
         if plot:
             self._plot(save_file=plot, title=self.model_name, exp_data=self.exp_data,
                        # columns=['conc_hb_dv', 'conc_hz', 'conc_fe2pp'])
-                       # columns=['conc_hb_dv', 'conc_fe2pp', 'conc_hb_dv_obs', 'conc_hz'])
-                       columns = ['conc_hb_dv_obs', 'conc_hz'])
+                       columns=['conc_hb_dv', 'conc_fe2pp', 'conc_hb_dv_obs', 'conc_hz'])
+                       # columns=['conc_hb_dv_obs', 'conc_hz'])

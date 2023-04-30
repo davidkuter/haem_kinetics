@@ -6,10 +6,10 @@ class Constants:
         # Miscellaneous Constants
         # -------------------------------------------------------------------------------------
         self.avogadro = 6.022e23
-        self.fudge = 45.5  # Fudge factor
+        self.fudge = 20  # Fudge factor
 
         # - Volumes
-        # self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
+        self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
         self.vol_dv = 1e-15  # Volume of digestive vacuole is 4 fL, reported here in L
         self.vol_fract_lip = 0.016  # Fractional volume of a lipid nanosphere relative to the DV volume
 
