@@ -1,3 +1,4 @@
+import math
 import pandas as pd
 
 from scipy.integrate import solve_ivp
@@ -7,21 +8,20 @@ from haem_kinetics.models.base import KineticsModel
 from haem_kinetics.components.experimental_data import ExperimentalData
 
 
-class Model2(KineticsModel):
+class Model4(KineticsModel):
     """
     This is the simplest model to simulate haemoglobin catabolism in the malaria parasite.
-    In this case, we have assumed:
-     * Linear transport of Hb into the DV
-     * Hb enzymatic degradation is rate-limited by HAP
-     * There is fudge factor to lower enzyme concentration or kcat.
-     * O2- is effectively 0 M given the presence of SOD, thus the reduction of Fe(III)PP is ignored.
-     * A portion of Fe3PPIX is sequestered in a lipid droplet
+    In this case, we have assumed O2- is effectively 0 M given the presence of SOD, thus the reduction of
+    Fe(III)PP is ignored. While this model correctly predicts an increase in Hz formation over a time period
+    that is relevant to the life cycle of the troph, it is unable to account for the basal “free haem”
+    levels as measured by Combrink et al. Consequently, an alteration to the model was necessary which is
+    described in Model 2.
     """
-    def __init__(self, model_name: str = 'Model 2'):
+    def __init__(self, model_name: str = 'Model 4'):
         super().__init__(model_name=model_name)
 
         # Initialise concentrations
-        self._set_initial_conc(init=[0.005, 0.0, 0.0, 0.0])
+        self._set_initial_conc(init=[0.0, 0.0, 0.0, 0.0])
 
         # Set Experimental data
         self.exp_data = ExperimentalData()
@@ -54,16 +54,50 @@ class Model2(KineticsModel):
         # plm_4_deg = self._calc_enzyme_rate(enzyme='plm_4',
         #                                    conc_hb_dv=conc_hb_dv)
         conc_hb_dv = self.initial_values['conc_hb_dv']
+        # return (plm_1_deg + plm_2_deg + hap_deg + plm_4_deg) * conc_hb_dv
+        # return (plm_1_deg + plm_2_deg) * conc_hb_dv
+        return hap_deg * conc_hb_dv
 
-        # removal = (plm_1_deg + plm_2_deg + hap_deg + plm_4_deg) * conc_hb_dv
-        # removal = (plm_1_deg + plm_2_deg) * conc_hb_dv
-        removal = hap_deg * conc_hb_dv
-        return removal
-
-    def _d_hb_dv(self):
+    def _d_hb_dv_dirkie(self, t):
 
         # Formation
-        form = self.const.k_hb_trans * self.const.conc_hb_rbc
+        # form = self.const.k_hb_trans * self.const.conc_hb_rbc
+        a = 13.1
+        b = 8.3e-4
+        form = a * b * (math.e ** (b * t)) / 55.845
+
+        # Removal
+
+        remove = self._hb_removal()
+
+        return form - remove
+
+    def _d_hb_dv_kuter(self, t):
+        """
+        abe^(bt)
+        :return:
+        """
+        a = 0.298 / 4
+        b = 0.001102
+        form = a * b * (math.e ** (b * t))
+
+        # Removal
+        remove = self._hb_removal()
+
+        return form - remove
+
+    def _d_hb_dv_sigmoid(self, t):
+        """
+
+        :return:
+        """
+        ln_t = math.log(t) if t != 0 else t
+        top = 1.924
+        bot = 0.5633
+        k = 7.121
+        h = 2.493
+        denom = (1 + (math.e ** (h * (k - ln_t))))**2
+        form = h * (top - bot) * (math.e ** (h * (k - ln_t))) / denom
 
         # Removal
         remove = self._hb_removal()
@@ -73,23 +107,22 @@ class Model2(KineticsModel):
     def _d_fe2pp(self):
 
         # Formation
-        form = self._hb_removal() + \
-               (self.const.k_fe3pp_red * self.const.compute_lipid_seq_constant()
-                * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy)
+        form = (self._hb_removal()) + \
+               (self.const.k_fe3pp_red * self.const.compute_lipid_seq_constant() * self.initial_values['conc_fe3pp'])
 
         # Removal
-        remove = self.const.k_fe2pp_ox * self.initial_values['conc_fe2pp'] * self.const.conc_oxy
+        remove = self.const.k_fe2pp_ox * self.initial_values['conc_fe2pp']
 
         return form - remove
 
     def _d_fe3pp(self):
 
         # Formation
-        form = self.const.k_fe2pp_ox * self.initial_values['conc_fe2pp'] * self.const.conc_oxy
+        form = self.const.k_fe2pp_ox * self.initial_values['conc_fe2pp']
 
         # Removal
         remove = (self.const.k_fe3pp_red * self.const.compute_lipid_seq_constant()
-                  * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy) + \
+                  * self.initial_values['conc_fe3pp']) + \
                  (self.const.k_hz * self.const.compute_lipid_seq_constant() * self.initial_values['conc_fe3pp'])
 
         return form - remove
@@ -132,7 +165,9 @@ class Model2(KineticsModel):
         # Set initial concentration values
         self._set_initial_conc(init=init)
 
-        return [self._d_hb_dv(), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
+        # return [self._d_hb_dv_dirkie(t), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
+        return [self._d_hb_dv_kuter(t), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
+        # return [self._d_hb_dv_sigmoid(t), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
 
     def run(self, t, init: Optional[List[float]] = None, plot: Optional[str] = None, **kwargs):
         """
@@ -150,7 +185,7 @@ class Model2(KineticsModel):
             kwargs = {}
 
         # Solve the differential equations
-        self.solution = solve_ivp(self._integrate, t, init, **kwargs)
+        self.solution = solve_ivp(self._integrate, t, init, method='BDF', **kwargs)
         self.time = 16 + self.solution.t / 60  # In hours, offset by 16 for parasite life-cycle
         self.concentrations = pd.DataFrame(self.solution.y, columns=self.time, index=list(self.initial_values.keys())).T
         self.concentrations = self.concentrations * 1000 * 0.2232  # convert to fg/cell

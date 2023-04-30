@@ -1,3 +1,4 @@
+import math
 import pandas as pd
 
 from scipy.integrate import solve_ivp
@@ -7,17 +8,18 @@ from haem_kinetics.models.base import KineticsModel
 from haem_kinetics.components.experimental_data import ExperimentalData
 
 
-class Model2(KineticsModel):
+class Model3(KineticsModel):
     """
     This is the simplest model to simulate haemoglobin catabolism in the malaria parasite.
     In this case, we have assumed:
-     * Linear transport of Hb into the DV
+     * Exponential transport of Hb into the DV
      * Hb enzymatic degradation is rate-limited by HAP
+     * Exponential increase in enzyme concentration that follows Hb transport rate
      * There is fudge factor to lower enzyme concentration or kcat.
      * O2- is effectively 0 M given the presence of SOD, thus the reduction of Fe(III)PP is ignored.
      * A portion of Fe3PPIX is sequestered in a lipid droplet
     """
-    def __init__(self, model_name: str = 'Model 2'):
+    def __init__(self, model_name: str = 'Model 3'):
         super().__init__(model_name=model_name)
 
         # Initialise concentrations
@@ -28,10 +30,22 @@ class Model2(KineticsModel):
         # self.exp_data.no_drug_nf54()
         self.exp_data.no_drug_dd2()
 
-    def _calc_enzyme_rate(self, enzyme, conc_hb_dv):
+    @staticmethod
+    def _fraction_exp_growth(t):
+        """
+        Fractional exponential growth
+        :param t:
+        :return:
+        """
+        a = 0.1578
+        b = 0.001102
+        # return a * b * (math.e ** (b * t))
+        return a * (math.e ** (b * t))
+
+    def _calc_enzyme_rate(self, enzyme, conc_hb_dv, t):
         kcat = self.const.k_enzymes[enzyme]['kcat'] * 60  # Converts s-1 to min-1
         Km = self.const.k_enzymes[enzyme]['Km']
-        conc_enzyme = self.const.conc_enzymes[enzyme] / self.const.fudge
+        conc_enzyme = self._fraction_exp_growth(t) * self.const.conc_enzymes[enzyme] / self.const.fudge
         denom = Km + conc_hb_dv
 
         if denom == 0:
@@ -39,7 +53,7 @@ class Model2(KineticsModel):
         else:
             return kcat * conc_enzyme / denom
 
-    def _hb_removal(self):
+    def _hb_removal(self, t):
         """
         Haemoglobin degradation by enzymes
         :return:
@@ -50,7 +64,7 @@ class Model2(KineticsModel):
         # plm_2_deg = self._calc_enzyme_rate(enzyme='plm_2',
         #                                    conc_hb_dv=conc_hb_dv)
         hap_deg = self._calc_enzyme_rate(enzyme='hap',
-                                         conc_hb_dv=conc_hb_dv)
+                                         conc_hb_dv=conc_hb_dv, t=t)
         # plm_4_deg = self._calc_enzyme_rate(enzyme='plm_4',
         #                                    conc_hb_dv=conc_hb_dv)
         conc_hb_dv = self.initial_values['conc_hb_dv']
@@ -60,20 +74,20 @@ class Model2(KineticsModel):
         removal = hap_deg * conc_hb_dv
         return removal
 
-    def _d_hb_dv(self):
+    def _d_hb_dv(self, t):
 
         # Formation
-        form = self.const.k_hb_trans * self.const.conc_hb_rbc
+        form = self._fraction_exp_growth(t) * self.const.conc_hb_rbc / 40  # Need to investigate this (40)
 
         # Removal
-        remove = self._hb_removal()
+        remove = self._hb_removal(t)
 
         return form - remove
 
-    def _d_fe2pp(self):
+    def _d_fe2pp(self, t):
 
         # Formation
-        form = self._hb_removal() + \
+        form = self._hb_removal(t) + \
                (self.const.k_fe3pp_red * self.const.compute_lipid_seq_constant()
                 * self.initial_values['conc_fe3pp'] * self.const.conc_supoxy)
 
@@ -132,7 +146,7 @@ class Model2(KineticsModel):
         # Set initial concentration values
         self._set_initial_conc(init=init)
 
-        return [self._d_hb_dv(), self._d_fe2pp(), self._d_fe3pp(), self._d_hz()]
+        return [self._d_hb_dv(t), self._d_fe2pp(t), self._d_fe3pp(), self._d_hz()]
 
     def run(self, t, init: Optional[List[float]] = None, plot: Optional[str] = None, **kwargs):
         """
