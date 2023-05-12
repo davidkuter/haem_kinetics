@@ -150,7 +150,8 @@ class Model1(KineticsModel):
         self.solution = solve_ivp(self._integrate, t, init, **kwargs)
         self.time = 16 + self.solution.t / 60  # In hours, offset by 16 for parasite life-cycle
         self.concentrations = pd.DataFrame(self.solution.y, columns=self.time, index=list(self.initial_values.keys())).T
-        self.concentrations = self.concentrations * 1000 * 0.2232  # convert to fg/cell
+        # self.concentrations = self.concentrations * 1000 * 0.2232  # convert to fg/cell
+        self.concentrations = self._molar_to_fgcell(df=self.concentrations)
 
         # Plot graph
         if plot:

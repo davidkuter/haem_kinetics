@@ -78,6 +78,19 @@ class KineticsModel:
         axes[1].legend(loc='upper left')
         plt.savefig(save_file)
 
+    def _molar_to_fgcell(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Converts mol/L (molar) concentrations to fg/cell.
+
+        mol -> fg: mol * 10^15 / mw of Fe = fg/L
+        fg/L -> fg/cell: fg/cell * volume of cell
+
+
+        :param df: Dataframe of concentrations in molar
+        """
+
+        return df * self.const.vol_rbc * (10 ** 15) / 55.85
+
     def run(self, t, init, kwargs):
         """
         API that solves differential equations and saves output.

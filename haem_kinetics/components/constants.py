@@ -6,7 +6,7 @@ class Constants:
         # Miscellaneous Constants
         # -------------------------------------------------------------------------------------
         self.avogadro = 6.022e23
-        self.fudge = 20  # Fudge factor
+        self.fudge = 1  # Fudge factor
 
         # - Volumes
         self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
@@ -40,7 +40,7 @@ class Constants:
         # - Estimated Rate constant for the transport of haemoglobin in the digestive vacuole
         #   DKuter (2023-03): I think this is an estimation from a Roepe paper?
         # This is the value needed to obtain ~100 fg/cell Hb in the DV at t~45hrs
-        self.k_hb_trans = 0.011  # min-1
+        self.k_hb_trans = 0.011 / self.conc_hb_rbc  # 0.011 M.min-1 / haemoglobin conc (M)
 
         # - Observed rate constant for the degradation of haemoglobin
         self.k_hb_deg = 0.0

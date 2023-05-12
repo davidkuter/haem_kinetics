@@ -61,13 +61,13 @@ class Degradation(KineticsModel):
         removal = hap_deg * conc_hb_dv
         return removal
 
-    # def _d_hb_dv_linear(self):
-    #
-    #     form = self.const.k_hb_trans * self.const.conc_hb_rbc
-    #     # remove = self._hb_removal()
-    #     remove = 0
-    #
-    #     return form - remove
+    def _d_hb_dv_linear(self):
+
+        form = self.const.k_hb_trans * self.const.conc_hb_rbc
+        # remove = self._hb_removal()
+        remove = 0
+
+        return form - remove
 
     # def _d_hb_dv_dirkie(self, t):
     #
@@ -95,20 +95,20 @@ class Degradation(KineticsModel):
         # return a * b * (math.e ** (b * t))
         return a * (math.e ** (b * t))
 
-    def _d_hb_dv_kuter(self, t):
-        """
-        abe^(bt)
-        :return:
-        """
-        # tot_hb_conc = (self.const.conc_hb_rbc * self.const.vol_rbc / self.const.vol_dv)
-        tot_hb_conc = self.const.conc_hb_rbc / 40
-        form = self._fraction_exp_growth(t) * tot_hb_conc
-
-        # Removal
-        # remove = self._hb_removal(t=t)
-        remove = 0
-
-        return form - remove
+    # def _d_hb_dv_kuter(self, t):
+    #     """
+    #     abe^(bt)
+    #     :return:
+    #     """
+    #     # tot_hb_conc = (self.const.conc_hb_rbc * self.const.vol_rbc / self.const.vol_dv)
+    #     tot_hb_conc = self.const.conc_hb_rbc / 40
+    #     form = self._fraction_exp_growth(t) * tot_hb_conc
+    #
+    #     # Removal
+    #     # remove = self._hb_removal(t=t)
+    #     remove = 0
+    #
+    #     return form - remove
 
     # def _d_hb_dv_sigmoid(self, t):
     #     """
@@ -167,8 +167,8 @@ class Degradation(KineticsModel):
         self._set_initial_conc(init=init)
 
         # return [self._d_hb_dv_dirkie(t), self._d_fe2pp()]
-        return [self._d_hb_dv_kuter(t), self._d_fe2pp(t)]
-        # return [self._d_hb_dv_linear(), self._d_fe2pp(t)]
+        # return [self._d_hb_dv_kuter(t), self._d_fe2pp(t)]
+        return [self._d_hb_dv_linear(), self._d_fe2pp(t)]
 
     def run(self, t, init: Optional[List[float]] = None, plot: Optional[str] = None, **kwargs):
         """
@@ -189,7 +189,7 @@ class Degradation(KineticsModel):
         self.solution = solve_ivp(self._integrate, t, init, method='BDF', **kwargs)
         self.time = 16 + self.solution.t / 60  # In hours, offset by 16 for parasite life-cycle
         self.concentrations = pd.DataFrame(self.solution.y, columns=self.time, index=list(self.initial_values.keys())).T
-        self.concentrations = self.concentrations * 1000 * 0.2232  # convert to fg/cell
+        self.concentrations = self._molar_to_fgcell(df=self.concentrations)
         self.concentrations['conc_hz'] = 0.0
         self.concentrations['conc_hb_dv_obs'] = self.concentrations['conc_hb_dv'] - self.concentrations['conc_fe2pp']
 
@@ -197,5 +197,5 @@ class Degradation(KineticsModel):
         if plot:
             self._plot(save_file=plot, title=self.model_name, exp_data=self.exp_data,
                        # columns=['conc_hb_dv', 'conc_hz', 'conc_fe2pp'])
-                       columns=['conc_hb_dv', 'conc_fe2pp', 'conc_hb_dv_obs', 'conc_hz'])
-                       # columns=['conc_hb_dv_obs', 'conc_hz'])
+                       # columns=['conc_hb_dv', 'conc_fe2pp', 'conc_hb_dv_obs', 'conc_hz'])
+                       columns=['conc_hb_dv_obs', 'conc_hz'])
