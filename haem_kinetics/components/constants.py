@@ -6,7 +6,7 @@ class Constants:
         # Miscellaneous Constants
         # -------------------------------------------------------------------------------------
         self.avogadro = 6.022e23
-        self.fudge = 1  # Fudge factor
+        self.fudge = 2.9  # Fudge factor
 
         # - Volumes
         self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
@@ -20,7 +20,7 @@ class Constants:
         # Concentrations
         # -------------------------------------------------------------------------------------
         # - Concentration of haemoglobin in the red blood cell (RBC)
-        self.conc_hb_rbc = 20e-3
+        self.conc_hb_rbc = self.compute_conc_hb_rcb()
         # - Concentration of oxygen [O2]
         #   From Prof. Egan: "Based on Hb saturation curve (30% at 3% O2)"
         self.conc_oxy = 1e-3  # Molar
@@ -37,11 +37,9 @@ class Constants:
         # -------------------------------------------------------------------------------------
         # Rate Constants
         # -------------------------------------------------------------------------------------
-        # - Estimated Rate constant for the transport of haemoglobin in the digestive vacuole
-        #   DKuter (2023-03): I think this is an estimation from a Roepe paper?
         # This is the value needed to obtain ~100 fg/cell Hb in the DV at t~45hrs
-        self.k_hb_trans = 0.011 / self.conc_hb_rbc  # 0.011 M.min-1 / haemoglobin conc (M)
-
+        # self.k_hb_trans = 0.011 / self.conc_hb_rbc  # 0.011 M.min-1 / haemoglobin conc (M)
+        self.k_hb_trans = 0.000007986 / self.conc_hb_rbc
         # - Observed rate constant for the degradation of haemoglobin
         self.k_hb_deg = 0.0
         # - Rate of Fe(II) haem oxidation by O2
@@ -90,11 +88,11 @@ class Constants:
         # Convert to Molar
         return conc / self.vol_dv
 
-    def compute_conc_hb_rcb(self):
+    @staticmethod
+    def compute_conc_hb_rcb() -> float:
         """
         Computes the concentration of Haemoglobin (in M) in the red blood cell (RBC)
         """
-
         # Average haemoglobin concentration in the RBC from:
         # https://medlineplus.gov/ency/article/003648.htm
         hb_conc = 34  # g.dL-1
@@ -104,61 +102,7 @@ class Constants:
         hb_conc = hb_conc / 64_500
 
         # Convert from per haemoglobin molecule to per haem
-        self.conc_hb_rbc = hb_conc * 4
-
-    @staticmethod
-    def _compute_kobs(kcat: float, Km: float, enzyme_conc: float) -> float:
-        """
-        Computes the observed rate constant from the Michaelis–Menten values using the
-        formula below. Note the catalytic rate constant input must be in s-1 but
-        the returned observed rate constant is in min-1.
-
-        k_obs = kcat * (enzyme concentration) / (Km * (enzyme concentration))
-
-        :param kcat: Catalytic rate constant (in s-1)
-        :param Km: Equilibrium constant
-        :param enzyme_conc: Enzyme concentration (in M)
-        :return: observed rate constant (in min-1)
-        """
-        k_obs = kcat * enzyme_conc / (Km + enzyme_conc)  # in s-1
-
-        # Convert to min-1
-        return k_obs * 60
-
-    def compute_rate_hb_deg_old(self):
-        """
-        This is the method used to compute a constant kobs for haemoglobin degradation. I suspect there is a mistake
-        in the derivation of the _compute_kobs which Prof. and I made. We use the conc of the enzyme instead of the
-        conc of the substrate (Hb_dv) - according to Michaelis-Menten, this is wrong.
-        :return:
-        """
-        # Convert from Michaelis–Menten to k observed
-        k_obs_plm_1 = self._compute_kobs(kcat=self.k_enzymes['plm_1']['kcat'],
-                                         Km=self.k_enzymes['plm_1']['Km'],
-                                         enzyme_conc=self.conc_enzymes['plm_1'])
-        k_obs_plm_2 = self._compute_kobs(kcat=self.k_enzymes['plm_2']['kcat'],
-                                         Km=self.k_enzymes['plm_2']['Km'],
-                                         enzyme_conc=self.conc_enzymes['plm_2'])
-        k_obs_hap = self._compute_kobs(kcat=self.k_enzymes['hap']['kcat'],
-                                         Km=self.k_enzymes['hap']['Km'],
-                                         enzyme_conc=self.conc_enzymes['hap'])
-        k_obs_plm_4 = self._compute_kobs(kcat=self.k_enzymes['hap']['kcat'],
-                                         Km=self.k_enzymes['hap']['Km'],
-                                         enzyme_conc=self.conc_enzymes['hap'])
-
-        # Compute the overall observed rate constant for haemoglobin degradation
-        # self.k_hb_deg = k_obs_plm_1*conc_plm_1 + k_obs_plm_2*conc_plm_2 + k_obs_hap*conc_hap
-        self.k_hb_deg = k_obs_plm_1 * self.conc_enzymes['plm_1'] + k_obs_plm_2 * self.conc_enzymes['plm_2'] + \
-                        k_obs_hap * self.conc_enzymes['hap'] + k_obs_plm_4 * self.conc_enzymes['plm_4']
+        return hb_conc * 4
 
     def compute_lipid_seq_constant(self):
-        # return 1 / (1 + (self.vol_fract_lip * self.K_partition))
         return (1 - self.vol_fract_lip) / (1 + self.vol_fract_lip + (self.vol_fract_lip * self.K_partition))
-
-    def compute_values(self):
-
-        # Compute Haemoglobin concentration in the red blood cell
-        self.compute_conc_hb_rcb()
-
-        # Compute rate constant for haemoglobin degradation
-        self.compute_rate_hb_deg_old()

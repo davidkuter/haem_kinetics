@@ -15,7 +15,6 @@ class KineticsModel:
 
         # Grab the constants required to integrate equations
         self.const = Constants()
-        self.const.compute_values()
 
         # To be solved
         self.initial_values = {}    # Stores initial concentrations of haem species using in integration
@@ -80,16 +79,18 @@ class KineticsModel:
 
     def _molar_to_fgcell(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Converts mol/L (molar) concentrations to fg/cell.
+        Converts mol/L (molar) concentrations to fg/cell. We only need to consider mol/L -> fg because we start off
+        the calculation on a per cell basis. When we set the rate of Hb transport, we use 106 fg Fe which is the max
+        mass of iron PER CELL. This the per cell actually inherent through the entire calculation.
 
-        mol -> fg: mol * 10^15 / mw of Fe = fg/L
-        fg/L -> fg/cell: fg/cell * volume of cell
+        I.e. concentration M is actually M/cell, etc.
 
+        mol/L -> fg/L: mol * 10^15 * mw of Fe
+        fg/L -> fg: fg/L * volume of DV
 
         :param df: Dataframe of concentrations in molar
         """
-
-        return df * self.const.vol_rbc * (10 ** 15) / 55.85
+        return df * self.const.vol_dv * (10 ** 15) * 55.85
 
     def run(self, t, init, kwargs):
         """

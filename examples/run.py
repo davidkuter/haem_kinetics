@@ -13,11 +13,11 @@ t_step = 20   # min
 # model.run(t=[t_start, t_end], init=[0.005, 0.0, 0.0, 0.0], t_eval=range(t_start, t_end, t_step), plot='test.png')
 #
 model = Degradation()
-model.run(t=[t_start, t_end], init=[0.005, 0.0], t_eval=range(t_start, t_end, t_step), plot='test.png')
+model.run(t=[t_start, t_end], init=[0.0, 0.0], t_eval=range(t_start, t_end, t_step), plot='test.png')
 
 # print(model.initial_values)
 # print(model.differential_eqs)
 # print(model.time)
 print(model.concentrations)
-# model.concentrations.to_csv('concentrations.tsv', sep='\t')
+model.concentrations.to_csv('concentrations.tsv', sep='\t')
 
