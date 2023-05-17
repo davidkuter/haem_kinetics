@@ -13,9 +13,9 @@ class Model3(KineticsModel):
     This is the simplest model to simulate haemoglobin catabolism in the malaria parasite.
     In this case, we have assumed:
      * Exponential transport of Hb into the DV
-     * Hb enzymatic degradation is rate-limited by HAP
+     * Hb enzymatic degradation by all enzymes
      * Exponential increase in enzyme concentration that follows Hb transport rate
-     * There is fudge factor to lower enzyme concentration or kcat.
+     * There is fudge factor to increase enzyme concentrations or kcat
      * O2- is effectively 0 M given the presence of SOD, thus the reduction of Fe(III)PP is ignored.
      * A portion of Fe3PPIX is sequestered in a lipid droplet
     """
@@ -60,7 +60,6 @@ class Model3(KineticsModel):
         conc_hb_dv = self.initial_values['conc_hb_dv'] / 4
         deg = 0
         for enzyme in ['plm_1', 'plm_2', 'hap', 'plm_4']:
-        # for enzyme in ['hap']:
             deg += self._calc_enzyme_rate(enzyme=enzyme,
                                           conc_hb_dv=conc_hb_dv,
                                           t=t)
