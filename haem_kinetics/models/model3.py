@@ -13,9 +13,9 @@ class Model3(KineticsModel):
     This is the simplest model to simulate haemoglobin catabolism in the malaria parasite.
     In this case, we have assumed:
      * Exponential transport of Hb into the DV
-     * Hb enzymatic degradation is rate-limited by HAP
+     * Hb enzymatic degradation by all enzymes
      * Exponential increase in enzyme concentration that follows Hb transport rate
-     * There is fudge factor to lower enzyme concentration or kcat.
+     * There is fudge factor to increase enzyme concentrations or kcat
      * O2- is effectively 0 M given the presence of SOD, thus the reduction of Fe(III)PP is ignored.
      * A portion of Fe3PPIX is sequestered in a lipid droplet
     """
@@ -39,13 +39,12 @@ class Model3(KineticsModel):
         """
         a = 0.1578
         b = 0.001102
-        # return a * b * (math.e ** (b * t))
-        return a * (math.e ** (b * t))
+        return a * b * (math.e ** (b * t))
 
     def _calc_enzyme_rate(self, enzyme, conc_hb_dv, t):
         kcat = self.const.k_enzymes[enzyme]['kcat'] * 60  # Converts s-1 to min-1
         Km = self.const.k_enzymes[enzyme]['Km']
-        conc_enzyme = self._fraction_exp_growth(t) * self.const.conc_enzymes[enzyme] / self.const.fudge
+        conc_enzyme = self._fraction_exp_growth(t) * self.const.conc_enzymes[enzyme] * self.const.fudge
         denom = Km + conc_hb_dv
 
         if denom == 0:
@@ -59,25 +58,19 @@ class Model3(KineticsModel):
         :return:
         """
         conc_hb_dv = self.initial_values['conc_hb_dv'] / 4
-        # plm_1_deg = self._calc_enzyme_rate(enzyme='plm_1',
-        #                                    conc_hb_dv=conc_hb_dv)
-        # plm_2_deg = self._calc_enzyme_rate(enzyme='plm_2',
-        #                                    conc_hb_dv=conc_hb_dv)
-        hap_deg = self._calc_enzyme_rate(enzyme='hap',
-                                         conc_hb_dv=conc_hb_dv, t=t)
-        # plm_4_deg = self._calc_enzyme_rate(enzyme='plm_4',
-        #                                    conc_hb_dv=conc_hb_dv)
-        conc_hb_dv = self.initial_values['conc_hb_dv']
-
-        # removal = (plm_1_deg + plm_2_deg + hap_deg + plm_4_deg) * conc_hb_dv
-        # removal = (plm_1_deg + plm_2_deg) * conc_hb_dv
-        removal = hap_deg * conc_hb_dv
+        deg = 0
+        for enzyme in ['plm_1', 'plm_2', 'hap', 'plm_4']:
+            deg += self._calc_enzyme_rate(enzyme=enzyme,
+                                          conc_hb_dv=conc_hb_dv,
+                                          t=t)
+        removal = 4 * deg * conc_hb_dv
         return removal
 
     def _d_hb_dv(self, t):
 
         # Formation
-        form = self._fraction_exp_growth(t) * self.const.conc_hb_rbc / 40  # Need to investigate this (40)
+        tot_hb_conc = (self.const.conc_hb_rbc * self.const.vol_rbc / self.const.vol_dv)
+        form = self._fraction_exp_growth(t) * tot_hb_conc
 
         # Removal
         remove = self._hb_removal(t)
@@ -163,11 +156,18 @@ class Model3(KineticsModel):
         if kwargs is False:
             kwargs = {}
 
+        # Reset the conc of Hb in RBC based on initial values supplied
+        self._set_initial_conc(init)
+        tot_init = 0
+        for _, v in self.initial_values.items():
+            tot_init += v
+        self.const.conc_hb_rbc = self.const.conc_hb_rbc - (tot_init * self.const.vol_dv / self.const.vol_rbc)
+
         # Solve the differential equations
         self.solution = solve_ivp(self._integrate, t, init, **kwargs)
-        self.time = 16 + self.solution.t / 60  # In hours, offset by 16 for parasite life-cycle
+        self.time = 16 + self.solution.t / 60  # In hours
         self.concentrations = pd.DataFrame(self.solution.y, columns=self.time, index=list(self.initial_values.keys())).T
-        self.concentrations = self.concentrations * 1000 * 0.2232  # convert to fg/cell
+        self.concentrations = self._molar_to_fgcell(self.concentrations)  # convert to fg/cell
 
         # Plot graph
         if plot:

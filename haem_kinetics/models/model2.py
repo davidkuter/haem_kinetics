@@ -21,7 +21,7 @@ class Model2(KineticsModel):
         super().__init__(model_name=model_name)
 
         # Initialise concentrations
-        self._set_initial_conc(init=[0.005, 0.0, 0.0, 0.0])
+        self._set_initial_conc(init=[0.000, 0.0, 0.0, 0.0])
 
         # Set Experimental data
         self.exp_data = ExperimentalData()
@@ -45,19 +45,12 @@ class Model2(KineticsModel):
         :return:
         """
         conc_hb_dv = self.initial_values['conc_hb_dv'] / 4
-        # plm_1_deg = self._calc_enzyme_rate(enzyme='plm_1',
-        #                                    conc_hb_dv=conc_hb_dv)
-        # plm_2_deg = self._calc_enzyme_rate(enzyme='plm_2',
-        #                                    conc_hb_dv=conc_hb_dv)
-        hap_deg = self._calc_enzyme_rate(enzyme='hap',
-                                         conc_hb_dv=conc_hb_dv)
-        # plm_4_deg = self._calc_enzyme_rate(enzyme='plm_4',
-        #                                    conc_hb_dv=conc_hb_dv)
-        conc_hb_dv = self.initial_values['conc_hb_dv']
-
-        # removal = (plm_1_deg + plm_2_deg + hap_deg + plm_4_deg) * conc_hb_dv
-        # removal = (plm_1_deg + plm_2_deg) * conc_hb_dv
-        removal = hap_deg * conc_hb_dv
+        deg = 0
+        for enzyme in ['plm_1', 'plm_2', 'hap', 'plm_4']:
+        # for enzyme in ['hap']:
+            deg += self._calc_enzyme_rate(enzyme=enzyme,
+                                          conc_hb_dv=conc_hb_dv)
+        removal = 4 * deg * conc_hb_dv
         return removal
 
     def _d_hb_dv(self):
@@ -149,11 +142,18 @@ class Model2(KineticsModel):
         if kwargs is False:
             kwargs = {}
 
+        # Reset the conc of Hb in RBC based on initial values supplied
+        self._set_initial_conc(init)
+        tot_init = 0
+        for _, v in self.initial_values.items():
+            tot_init += v
+        self.const.conc_hb_rbc = self.const.conc_hb_rbc - (tot_init * self.const.vol_dv / self.const.vol_rbc)
+
         # Solve the differential equations
         self.solution = solve_ivp(self._integrate, t, init, **kwargs)
         self.time = 16 + self.solution.t / 60  # In hours, offset by 16 for parasite life-cycle
         self.concentrations = pd.DataFrame(self.solution.y, columns=self.time, index=list(self.initial_values.keys())).T
-        self.concentrations = self.concentrations * 1000 * 0.2232  # convert to fg/cell
+        self.concentrations = self._molar_to_fgcell(self.concentrations)  # convert to fg/cell
 
         # Plot graph
         if plot:
