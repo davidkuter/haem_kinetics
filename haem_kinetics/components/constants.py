@@ -6,7 +6,7 @@ class Constants:
         # Miscellaneous Constants
         # -------------------------------------------------------------------------------------
         self.avogadro = 6.022e23
-        self.fudge = 2.9  # Fudge factor
+        self.fudge = 2.5  # Fudge factor
 
         # - Volumes
         self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
@@ -50,7 +50,7 @@ class Constants:
         self.k_fe3pp_red = 180e-9
         # - Rate of haemozoin formation
         #   https://link.springer.com/article/10.1186/1475-2875-11-337
-        self.k_hz = 0.12  # min-1
+        self.k_hz = 0.15  # min-1
         # - Enzyme rate constants
         #   1. https://www.sciencedirect.com/science/article/pii/0166685196026515
         #   2. https://www.sciencedirect.com/science/article/abs/pii/S0731708503005661

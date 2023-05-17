@@ -54,13 +54,7 @@ class Degradation(KineticsModel):
         """
         kcat = self.const.k_enzymes[enzyme]['kcat'] * 60  # Converts s-1 to min-1
         Km = self.const.k_enzymes[enzyme]['Km']
-        print('kcat:', kcat)
-        print('Km:', Km)
         conc_enzyme = self._fraction_exp_growth(t) * self.const.conc_enzymes[enzyme] * self.const.fudge
-        # conc_enzyme =self.const.conc_enzymes[enzyme] / self.const.fudge
-        print('conc enzyme:', conc_enzyme)
-        print('conc Hb:', conc_hb_dv)
-        # conc_enzyme = self.const.conc_enzymes[enzyme] / self.const.fudge
         denom = Km + conc_hb_dv
 
         if denom == 0:
@@ -73,19 +67,15 @@ class Degradation(KineticsModel):
         Haemoglobin degradation by enzymes
         :return:
         """
-        print('****')
-        print('time:', t)
         conc_hb_dv = self.initial_values['conc_hb_dv'] / 4
 
         deg = 0
-        # for enzyme in ['plm_1', 'plm_2', 'hap', 'plm_4']:
-        for enzyme in ['plm_1', 'plm_2', 'hap']:
+        for enzyme in ['plm_1', 'plm_2', 'hap', 'plm_4']:
         # for enzyme in ['hap']:
             deg += self._calc_enzyme_rate(enzyme=enzyme,
                                           conc_hb_dv=conc_hb_dv,
                                           t=t)
         removal = 4 * deg * conc_hb_dv  # 4 * rate of Hb deg because we release 4 haems per Hb
-        print('conc fe2pp:', removal)
         return removal
 
     # def _d_hb_dv_linear(self):
@@ -117,12 +107,21 @@ class Degradation(KineticsModel):
         :param t:
         :return:
         """
-        # a = 0.1578
-        # b = 0.001102
-        a = 0.06427
-        b = 0.001036
+        a = 0.1578    # t0 = 16hrs
+        b = 0.001102  # t0 = 16hrs
+        # a = 0.06427   # t0 = 0hrs
+        # b = 0.001036  # t0 = 0hrs
 
         return a * b * (math.e ** (b * t))
+
+    @staticmethod
+    def _fraction_lin_growth():
+        """
+        Fractional linear growth
+        :param t:
+        :return:
+        """
+        return 0.0003788
 
     def _d_hb_dv_kuter(self, t):
         """
@@ -130,7 +129,6 @@ class Degradation(KineticsModel):
         :return:
         """
         tot_hb_conc = (self.const.conc_hb_rbc * self.const.vol_rbc / self.const.vol_dv)
-        # tot_hb_conc = self.const.conc_hb_rbc
         form = self._fraction_exp_growth(t) * tot_hb_conc
 
         # Removal
@@ -214,10 +212,17 @@ class Degradation(KineticsModel):
         if kwargs is False:
             kwargs = {}
 
+        # Reset the conc of Hb in RBC based on initial values supplied
+        self._set_initial_conc(init)
+        tot_init = 0
+        for _, v in self.initial_values.items():
+            tot_init += v
+        self.const.conc_hb_rbc = self.const.conc_hb_rbc - (tot_init * self.const.vol_dv / self.const.vol_rbc)
+
         # Solve the differential equations
         self.solution = solve_ivp(self._integrate, t, init, method='BDF', **kwargs)
-        # self.time = 16 + self.solution.t / 60  # In hours, offset by 16 for parasite life-cycle
-        self.time = self.solution.t / 60  # In hours
+        self.time = 16 + self.solution.t / 60  # In hours, offset by 16 for parasite life-cycle
+        # self.time = self.solution.t / 60  # In hours
         self.concentrations = pd.DataFrame(self.solution.y, columns=self.time, index=list(self.initial_values.keys())).T
         self.concentrations = self._molar_to_fgcell(df=self.concentrations)
         self.concentrations['conc_hz'] = 0.0

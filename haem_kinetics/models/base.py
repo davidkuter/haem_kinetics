@@ -85,8 +85,7 @@ class KineticsModel:
 
         I.e. concentration M is actually M/cell, etc.
 
-        mol/L -> fg/L: mol * 10^15 * mw of Fe
-        fg/L -> fg: fg/L * volume of DV
+        mol/cell -> fg/cell: mol * 10^15 * mw of Fe
 
         :param df: Dataframe of concentrations in molar
         """
