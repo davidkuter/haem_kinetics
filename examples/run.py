@@ -11,7 +11,7 @@ t_step = 20   # min
 init = [0.018,  # Hb-DV: conc in DV, corresponds to 2E-4 M in cell
         0.0,    # Fe2PP
         0.0,    # Fe3PP
-        0.0]    # Hz
+        0.36]    # Hz
 
 model = Model3()
 model.run(t=[t_start, t_end], init=init[:4], t_eval=range(t_start, t_end, t_step), plot='test.png')
