@@ -36,12 +36,33 @@ class KineticsModel:
 
     # ToDo: Implement later
     def _plot(self, save_file: str, title: str, columns: Optional[List[str]] = None,
-              exp_data: Optional[ExperimentalData] = None):
+              exp_data: Optional[ExperimentalData] = None,
+              free_haem_cols: Optional[List[str]] = None,
+              plot_total_fe: bool = False):
         # Set which data will be plotted
-        df_plot = self.concentrations if columns is None else self.concentrations[columns]
+        df_plot = self.concentrations.copy()
+        if free_haem_cols:
+            df_plot['conc_fe3pp_free'] = df_plot[free_haem_cols].sum(axis=1)
+        if plot_total_fe:
+            fe_cols = [c for c in df_plot.columns
+                       if c.startswith('conc_') and c not in ('conc_hb_host',)]
+            # Prefer explicit DV species if host Fe is tracked separately
+            species = [c for c in fe_cols if c != 'conc_fe3pp_free']
+            if 'conc_hb_host' in df_plot.columns:
+                df_plot['conc_fe_total'] = df_plot[species].sum(axis=1) + df_plot['conc_hb_host']
+            else:
+                df_plot['conc_fe_total'] = df_plot[species].sum(axis=1)
+
+        if columns is None:
+            plot_df = df_plot
+        else:
+            plot_df = df_plot[columns]
 
         # Set up plot
-        fig, axes = plt.subplots(1, 2, figsize=(20, 10))
+        n_axes = 3 if plot_total_fe else 2
+        fig, axes = plt.subplots(1, n_axes, figsize=(10 * n_axes, 10))
+        if n_axes == 2:
+            axes = list(axes)
         font_size = 16
         plt.rcParams.update({'font.size': font_size})
         fig.suptitle(title, fontsize=font_size + 8)
@@ -55,26 +76,28 @@ class KineticsModel:
         plt.setp(axes, xticks=x_range, xlabel='Time (hrs)', ylabel='Fe (fg/cell)')
 
         # Plot Hz
-        axes[1].plot(df_plot.index, df_plot['conc_hz'], 'r', label='conc_hz')
-        if exp_data:
+        axes[1].plot(plot_df.index, plot_df['conc_hz'], 'r', label='conc_hz')
+        if exp_data is not None and not exp_data.data.empty:
             axes[1].errorbar(exp_data.data.index, exp_data.data['Hz'], yerr=exp_data.data['Hz:SEM'].values,
                              label='Exp Hz', fmt="o", mfc='white', ecolor='r', color='r')
-        axes[1].legend(loc='upper right')
+        axes[1].legend(loc='upper left')
 
         # Plot remaining Haem species
-        cols = [col for col in df_plot.columns if col != 'conc_hz']
-        axes[0].plot(df_plot.index, df_plot[cols], label=cols)
-        if exp_data:
+        cols = [col for col in plot_df.columns if col not in ('conc_hz', 'conc_fe_total')]
+        axes[0].plot(plot_df.index, plot_df[cols], label=cols)
+        if exp_data is not None and not exp_data.data.empty:
             axes[0].errorbar(exp_data.data.index, exp_data.data['Hm'], yerr=exp_data.data['Hm:SEM'].values,
                              label='Exp Haem', fmt="o", mfc='white', ecolor='orange', color='orange')
             axes[0].errorbar(exp_data.data.index, exp_data.data['Hb'], yerr=exp_data.data['Hb:SEM'].values,
                              label='Exp Hb', fmt="o", mfc='white', ecolor='b', color='b')
         axes[0].legend(loc='upper left')
 
-        # Format
+        if plot_total_fe and 'conc_fe_total' in df_plot.columns:
+            axes[2].plot(df_plot.index, df_plot['conc_fe_total'], 'k', label='Total Fe (model)')
+            axes[2].axhline(self.const.total_fe_fg_cell, color='gray', linestyle='--',
+                            label=f'Budget ({self.const.total_fe_fg_cell:.0f} fg)')
+            axes[2].legend(loc='upper left')
 
-        # Save output
-        axes[1].legend(loc='upper left')
         plt.savefig(save_file)
 
     def _molar_to_fgcell(self, df: pd.DataFrame) -> pd.DataFrame:
