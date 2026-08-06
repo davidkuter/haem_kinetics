@@ -8,7 +8,7 @@ from haem_kinetics.models.base import KineticsModel
 from haem_kinetics.components.experimental_data import ExperimentalData
 
 
-class Model3(KineticsModel):
+class Model4(KineticsModel):
     """
     This is the simplest model to simulate haemoglobin catabolism in the malaria parasite.
     In this case, we have assumed:
@@ -19,7 +19,7 @@ class Model3(KineticsModel):
      * O2- is effectively 0 M given the presence of SOD, thus the reduction of Fe(III)PP is ignored.
      * A portion of Fe3PPIX is sequestered in a lipid droplet
     """
-    def __init__(self, model_name: str = 'Model 3'):
+    def __init__(self, model_name: str = 'Model 4'):
         super().__init__(model_name=model_name)
 
         # Initialise concentrations
