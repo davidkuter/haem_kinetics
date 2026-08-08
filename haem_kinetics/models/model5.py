@@ -1,146 +1,153 @@
-"""Model 5: corrected aqueous/lipid Fe(III) pools; Hz from lipid pool without φ penalty."""
+"""Model 5: Model 4 Fe(III) path + logistic enzyme maturation (decoupled from f_exp)."""
 import pandas as pd
 
-from scipy.integrate import solve_ivp
 from typing import List, Optional
 
 from haem_kinetics.models.base import KineticsModel
-from haem_kinetics.models.helpers import fraction_exp_growth, lipid_over_aq_ratio
+from haem_kinetics.models.helpers import (
+    enzyme_logistic_scale,
+    fraction_exp_growth,
+    lipid_over_aq_ratio,
+)
 from haem_kinetics.components.experimental_data import ExperimentalData
 
 
 class Model5(KineticsModel):
     """
-    Successor to Model 3 with corrected lipid–haemozoin chemistry.
+    One change vs Model 4: enzyme abundance schedule.
 
-    Assumptions:
-     * Exponential Hb transport and enzyme growth (same f_exp as Model 3)
-     * Plasmepsin degradation with fudge multiplying [E]
-     * Fe(III) split into aqueous and lipid-associated pools with kinetic exchange
-     * Haemozoin forms from the lipid pool at k_hz (NOT multiplied by φ)
-     * Free haem for comparison = aqueous + lipid non-Hz Fe(III)
-     * Fixed DV volume; host Hb only corrected once at t0 (same limitation as Model 3)
-
-    State vector (M, DV basis):
-      [conc_hb_dv, conc_fe2pp, conc_fe3pp_aq, conc_fe3pp_lip, conc_hz]
+    Keeps Model 4's haem-releasing proteases (PMs + FP2/3) and peptide-table kcat.
+    Replaces f_exp-tied [E] with logistic maturation vs parasite age.
+    Uptake still uses f_exp (decoupled from proteases).
+    Fe(III) path unchanged: aq ⇄ lip → Hz.
     """
 
-    SPECIES = [
+    DV_SPECIES = [
         'conc_hb_dv',
         'conc_fe2pp',
         'conc_fe3pp_aq',
         'conc_fe3pp_lip',
         'conc_hz',
     ]
+    PROTEASES = ['plm_1', 'plm_2', 'hap', 'plm_4', 'fp_2', 'fp_3']
 
     def __init__(self, model_name: str = 'Model 5'):
         super().__init__(model_name=model_name)
-        self._set_initial_conc(init=[0.005, 0.0, 0.0, 0.0, 0.0])
+        self._set_initial_conc(init=[0.005, 0.0, 0.0, 0.0, 0.0, self._full_hb_rbc_m()])
         self.exp_data = ExperimentalData()
         self.exp_data.no_drug_dd2()
         self._k_eff = lipid_over_aq_ratio(
             self.const.vol_fract_lip, self.const.K_partition
         )
 
-    def _calc_enzyme_rate(self, enzyme, conc_hb_dv, t):
+    def _calc_enzyme_rate(self, enzyme, conc_hb_tetramer, t):
+        if conc_hb_tetramer <= 0.0:
+            return 0.0
         kcat = self.const.k_enzymes[enzyme]['kcat'] * 60
         Km = self.const.k_enzymes[enzyme]['Km']
         conc_enzyme = (
-            fraction_exp_growth(t)
+            enzyme_logistic_scale(t)
             * self.const.conc_enzymes[enzyme]
-            * self.const.fudge
         )
-        denom = Km + conc_hb_dv
-        if denom == 0:
+        denom = Km + conc_hb_tetramer
+        if denom <= 0.0:
             return 0.0
         return kcat * conc_enzyme / denom
 
     def _hb_removal(self, t):
-        conc_hb = self.initial_values['conc_hb_dv'] / 4
+        conc_hb_tetramer = self._nonneg(self.initial_values['conc_hb_dv']) / 4.0
+        if conc_hb_tetramer <= 0.0:
+            return 0.0
         deg = 0.0
-        for enzyme in ['plm_1', 'plm_2', 'hap', 'plm_4']:
-            deg += self._calc_enzyme_rate(enzyme, conc_hb, t)
-        return 4 * deg * conc_hb
+        for enzyme in self.PROTEASES:
+            deg += self._calc_enzyme_rate(enzyme, conc_hb_tetramer, t)
+        return 4.0 * deg * conc_hb_tetramer
 
     def _exchange_rate(self):
-        """Net flux aqueous -> lipid (M/min), DV-referenced concentrations."""
-        aq = self.initial_values['conc_fe3pp_aq']
-        lip = self.initial_values['conc_fe3pp_lip']
-        # At equilibrium lip = k_eff * aq
+        aq = self._nonneg(self.initial_values['conc_fe3pp_aq'])
+        lip = self._nonneg(self.initial_values['conc_fe3pp_lip'])
         return self.const.k_lipid_exchange * (aq - lip / self._k_eff)
 
+    def _uptake_dv(self, t):
+        host = self._nonneg(self.initial_values[self.HOST_KEY])
+        if host <= 0.0:
+            return 0.0
+        tot_hb_conc = host * self.const.vol_rbc / self.const.vol_dv
+        return fraction_exp_growth(t) * tot_hb_conc
+
+    def _ox_rate(self):
+        fe2 = self._nonneg(self.initial_values['conc_fe2pp'])
+        if fe2 <= 0.0:
+            return 0.0
+        return self.const.k_fe2pp_ox * fe2 * self.const.conc_oxy
+
+    def _hz_rate(self):
+        lip = self._nonneg(self.initial_values['conc_fe3pp_lip'])
+        if lip <= 0.0:
+            return 0.0
+        return self.const.k_hz * lip
+
     def _d_hb_dv(self, t):
-        tot_hb_conc = self.const.conc_hb_rbc * self.const.vol_rbc / self.const.vol_dv
-        form = fraction_exp_growth(t) * tot_hb_conc
-        return form - self._hb_removal(t)
+        return self._uptake_dv(t) - self._hb_removal(t)
 
     def _d_fe2pp(self, t):
         form = self._hb_removal(t) + (
             self.const.k_fe3pp_red
-            * self.initial_values['conc_fe3pp_aq']
+            * self._nonneg(self.initial_values['conc_fe3pp_aq'])
             * self.const.conc_supoxy
         )
-        remove = (
-            self.const.k_fe2pp_ox
-            * self.initial_values['conc_fe2pp']
-            * self.const.conc_oxy
-        )
-        return form - remove
+        return form - self._ox_rate()
 
     def _d_fe3pp_aq(self):
-        form = (
-            self.const.k_fe2pp_ox
-            * self.initial_values['conc_fe2pp']
-            * self.const.conc_oxy
-        )
         remove = (
             self.const.k_fe3pp_red
-            * self.initial_values['conc_fe3pp_aq']
+            * self._nonneg(self.initial_values['conc_fe3pp_aq'])
             * self.const.conc_supoxy
         ) + self._exchange_rate()
-        return form - remove
+        return self._ox_rate() - remove
 
     def _d_fe3pp_lip(self):
-        form = self._exchange_rate()
-        remove = self.const.k_hz * self.initial_values['conc_fe3pp_lip']
-        return form - remove
+        return self._exchange_rate() - self._hz_rate()
 
     def _d_hz(self):
-        return self.const.k_hz * self.initial_values['conc_fe3pp_lip']
+        return self._hz_rate()
 
     def _set_initial_conc(self, init: List[float]):
-        if len(init) != 5:
-            raise ValueError('Model5 requires 5 initial values: '
-                             '[Hb_DV, Fe2, Fe3_aq, Fe3_lip, Hz] (M)')
-        for key, val in zip(self.SPECIES, init):
+        if len(init) == len(self.DV_SPECIES):
+            init = self._pad_init_with_host(init)
+        if len(init) != len(self.DV_SPECIES) + 1:
+            raise ValueError(
+                'Model5 requires 5 DV values '
+                '[Hb_DV, Fe2, Fe3_aq, Fe3_lip, Hz], optionally + host'
+            )
+        for key, val in zip(self.DV_SPECIES + [self.HOST_KEY], init):
             self.initial_values[key] = val
 
     def _integrate(self, t, init):
-        self._set_initial_conc(init=init)
-        return [
+        raw = [float(x) for x in init]
+        self._set_initial_conc(init=raw)
+        uptake = self._uptake_dv(t)
+        dydt = [
             self._d_hb_dv(t),
             self._d_fe2pp(t),
             self._d_fe3pp_aq(),
             self._d_fe3pp_lip(),
             self._d_hz(),
+            self._d_host_from_dv_uptake(uptake),
         ]
+        return dydt
 
     def run(self, t, init: Optional[List[float]] = None, plot: Optional[str] = None, **kwargs):
         if init is None:
             init = [0.0, 0.0, 0.0, 0.0, 0.0]
+        y0 = self._pad_init_with_host(init) if len(init) == len(self.DV_SPECIES) else list(init)
 
-        self._set_initial_conc(init)
-        tot_init = sum(self.initial_values.values())
-        self.const.conc_hb_rbc = self.const.conc_hb_rbc - (
-            tot_init * self.const.vol_dv / self.const.vol_rbc
-        )
-
-        self.solution = solve_ivp(self._integrate, t, init, **kwargs)
+        self.solution = self._solve_ivp(self._integrate, t, y0, **kwargs)
         self.time = 16 + self.solution.t / 60
         self.concentrations = pd.DataFrame(
             self.solution.y, columns=self.time, index=list(self.initial_values.keys())
         ).T
-        self.concentrations = self._molar_to_fgcell(self.concentrations)
+        self.concentrations = self._concentrations_to_fgcell(self.concentrations)
 
         if plot:
             self._plot(

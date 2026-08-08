@@ -5,15 +5,19 @@ parasite *Plasmodium falciparum*.
 
 ## Models
 
-See **[docs/models.md](docs/models.md)** for a full comparison of Models 1–7 and the
-Degradation sandbox: assumptions, state variables, and how each version differs.
+Overview and comparison: **[docs/models.md](docs/models.md)**
 
-| Model | Role |
-|-------|------|
-| 1–4, Degradation | Legacy ladder (linear → exponential uptake, lipid `φ` on Hz) |
-| **5** | Corrected aqueous/lipid Fe(III) pools; Hz from lipid at `k_hz` |
-| **6** | + dynamic DV volume, depleting host Fe, sigmoidal uptake (fg/cell) |
-| **7** | + falcipain-2/3 |
+Detailed pages (with process schematics):
+
+| Model | Doc |
+|-------|-----|
+| Degradation | [docs/models/degradation.md](docs/models/degradation.md) |
+| Model 1 | [docs/models/model1.md](docs/models/model1.md) |
+| Model 2 | [docs/models/model2.md](docs/models/model2.md) |
+| Model 3 | [docs/models/model3.md](docs/models/model3.md) |
+| Model 4 | [docs/models/model4.md](docs/models/model4.md) |
+| Model 5 | [docs/models/model5.md](docs/models/model5.md) |
+| Model 6 | [docs/models/model6.md](docs/models/model6.md) |
 
 ## Quick start
 

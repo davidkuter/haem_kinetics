@@ -1,0 +1,27 @@
+---
+description: Mechanistic scientific grounding for haem kinetics models
+alwaysApply: true
+---
+
+# Scientific accountability (haem_kinetics)
+
+This project builds **mechanistic** ODE models of Hb → haem → haemozoin. The goal is a fit that can be **accounted for by biology/chemistry**, not a numerical curve-fit.
+
+## Hard rules
+
+1. **Every model change needs a scientific reason** (literature, chemistry, cell biology). Do not add terms, factors, caps, or switches whose only purpose is to improve plots, stabilize the solver, or match Dd2 by construction.
+2. **Do not alter the governing rate laws to fix numerics.** No bounded-consume, artificial efficiency fudge, soft caps, or ad hoc sinks/sources. If the integrator struggles, fix **tolerances / method / model stiffness via real biology** (e.g. enzyme schedule), not a patched RHS.
+3. **One mechanistic change per numbered model.** Keep the ladder incremental and documented.
+4. **Parameters must be traceable** (assay, PaxDB, cited paper). Label unknowns as provisional; prefer measuring/replacing them over inventing compensations elsewhere.
+5. **Mass balance is a conservation law**, not a plotting convenience. Never clip negatives before summing Fe; negatives mean the solve failed or the model is wrong—investigate, do not hide.
+6. **Docs must match the equations that are integrated.** Do not document workarounds as if they were biology.
+
+## Allowed numerics (not model content)
+
+- Choosing BDF / tolerances so the **stated ODEs** are integrated accurately
+- Evaluating a rate as zero when its substrate is ≤ 0 (domain of the physical rate law)
+- Unit conversions and host↔DV volume bookkeeping
+
+## When something disagrees with experiment
+
+Prefer the next **mechanistic** hypothesis (missing protease timing, lipid pools, crystal-competent fraction, wrong PaxDB source, peptide vs Hb `kcat`, dynamic `V_DV`, …). Do **not** introduce a dimensionless fudge to close the gap.

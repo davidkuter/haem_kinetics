@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from scipy.integrate import solve_ivp
 from typing import List, Optional
 
 from haem_kinetics.components.constants import Constants
@@ -8,6 +9,15 @@ from haem_kinetics.components.experimental_data import ExperimentalData
 
 
 class KineticsModel:
+    """Base class for haem speciation ODEs.
+
+    Host RBC haemoglobin (`conc_hb_rbc`) is part of the ODE state in all models so
+    uptake depletes the finite Fe budget (~106 fg/cell). Callers may still pass
+    DV-only initial conditions; `run()` appends the remaining host concentration.
+    """
+
+    HOST_KEY = 'conc_hb_rbc'
+
     def __init__(self, model_name):
 
         # General
@@ -34,22 +44,69 @@ class KineticsModel:
         """
         raise NotImplementedError('_set_initial_conc must be overwritten by the model class')
 
-    # ToDo: Implement later
+    def _nonneg(self, x: float) -> float:
+        """Physical domain helper: rate laws are undefined for negative concentrations."""
+        x = float(x)
+        return x if x > 0.0 else 0.0
+
+    def _solve_ivp(self, fun, t_span, y0, **kwargs):
+        """Integrate the stated ODEs (BDF). Tight tol = accurate solve, not a model change."""
+        opts = {'method': 'BDF', 'rtol': 1e-8, 'atol': 1e-12, **kwargs}
+        return solve_ivp(fun, t_span, y0, **opts)
+
+    def _full_hb_rbc_m(self) -> float:
+        """Uninfected-RBC haem-equivalent concentration (M), before any parasite uptake."""
+        return Constants.compute_conc_hb_rcb()
+
+    def _initial_host_rbc_m(self, dv_init: List[float]) -> float:
+        """
+        Remaining host [Hb]_RBC (M) after accounting for Fe already in DV species.
+
+        DV concentrations are on vol_dv; convert to RBC basis for subtraction.
+        """
+        tot_dv = float(sum(dv_init))
+        host = self._full_hb_rbc_m() - tot_dv * self.const.vol_dv / self.const.vol_rbc
+        return max(host, 0.0)
+
+    def _pad_init_with_host(self, dv_init: List[float]) -> List[float]:
+        """Append remaining host [Hb]_RBC to a DV-only initial state vector."""
+        return list(dv_init) + [self._initial_host_rbc_m(dv_init)]
+
+    def _d_host_from_dv_uptake(self, uptake_dv_m_per_min: float) -> float:
+        """d[Hb]_RBC/dt given Hb appearance rate in the DV (M/min on vol_dv)."""
+        return -uptake_dv_m_per_min * self.const.vol_dv / self.const.vol_rbc
+
+    def _concentrations_to_fgcell(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convert ODE outputs to fg Fe/cell.
+
+        DV species use vol_dv; host RBC Hb uses vol_rbc.
+
+        No clipping: the fg time course must reflect the ODE solution.
+        """
+        if self.HOST_KEY not in df.columns:
+            return self._molar_to_fgcell(df)
+        host_m = df[self.HOST_KEY]
+        dv = df.drop(columns=[self.HOST_KEY])
+        out = self._molar_to_fgcell(dv)
+        out[self.HOST_KEY] = host_m * self.const.vol_rbc * (10 ** 15) * 55.85
+        return out
+
     def _plot(self, save_file: str, title: str, columns: Optional[List[str]] = None,
               exp_data: Optional[ExperimentalData] = None,
               free_haem_cols: Optional[List[str]] = None,
               plot_total_fe: bool = False):
-        # Set which data will be plotted
+        # Plot the converted solution as-is (no clipping). Negatives mean the
+        # integrator failed the stated ODEs — do not hide that in the figure.
         df_plot = self.concentrations.copy()
         if free_haem_cols:
             df_plot['conc_fe3pp_free'] = df_plot[free_haem_cols].sum(axis=1)
         if plot_total_fe:
-            fe_cols = [c for c in df_plot.columns
-                       if c.startswith('conc_') and c not in ('conc_hb_host',)]
-            # Prefer explicit DV species if host Fe is tracked separately
-            species = [c for c in fe_cols if c != 'conc_fe3pp_free']
-            if 'conc_hb_host' in df_plot.columns:
-                df_plot['conc_fe_total'] = df_plot[species].sum(axis=1) + df_plot['conc_hb_host']
+            skip = {'conc_fe3pp_free', self.HOST_KEY}
+            species = [c for c in df_plot.columns
+                       if c.startswith('conc_') and c not in skip]
+            if self.HOST_KEY in df_plot.columns:
+                df_plot['conc_fe_total'] = df_plot[species].sum(axis=1) + df_plot[self.HOST_KEY]
             else:
                 df_plot['conc_fe_total'] = df_plot[species].sum(axis=1)
 
@@ -93,9 +150,16 @@ class KineticsModel:
         axes[0].legend(loc='upper left')
 
         if plot_total_fe and 'conc_fe_total' in df_plot.columns:
+            budget = self.const.total_fe_fg_cell
             axes[2].plot(df_plot.index, df_plot['conc_fe_total'], 'k', label='Total Fe (model)')
-            axes[2].axhline(self.const.total_fe_fg_cell, color='gray', linestyle='--',
-                            label=f'Budget ({self.const.total_fe_fg_cell:.0f} fg)')
+            axes[2].axhline(budget, color='gray', linestyle='--',
+                            label=f'Budget ({budget:.0f} fg)')
+            # Avoid matplotlib offset notation (e.g. +1.06e2 with ±0.015 ticks),
+            # which makes conserved ~106 fg look like values near zero.
+            axes[2].ticklabel_format(axis='y', style='plain', useOffset=False)
+            ymin = min(0.0, float(df_plot['conc_fe_total'].min()) * 0.95)
+            ymax = max(budget * 1.15, float(df_plot['conc_fe_total'].max()) * 1.05)
+            axes[2].set_ylim(ymin, ymax)
             axes[2].legend(loc='upper left')
 
         plt.savefig(save_file)
