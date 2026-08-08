@@ -10,7 +10,7 @@ class Constants:
         # - Volumes
         self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
         # Fixed DV volume for Models 1-5. Comment historically said "4 fL";
-        # Combrink 2025 reports Dd2 lumen peaking near ~3.7 fL (dynamic).
+        # Garnie et al. Commun. Biol. 2025 reports Dd2 lumen peaking near ~3.7 fL (dynamic).
         self.vol_dv = 1e-15  # L (1 fL) — fixed-volume models only
         self.vol_fract_lip = 0.016  # Fractional volume of a lipid nanosphere relative to the DV volume
 

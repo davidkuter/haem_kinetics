@@ -1,17 +1,27 @@
-# Model 1
+# Legacy Model 2
 
-**Code:** [`haem_kinetics/models/model1.py`](../../haem_kinetics/models/model1.py)  
-**Up:** [Model index](../models.md) · **Next:** [Model 2](model2.md)
+**Code:** [`haem_kinetics/models/legacy/model2.py`](../../../haem_kinetics/models/legacy/model2.py)  
+**Up:** [Legacy index](README.md) · [Active models](../../models.md) · **Prev:** [Model 1](../model1.md) · **Next:** [Legacy Model 3](model3.md)
 
-Baseline full speciation model: **linear** host→DV uptake, haem-releasing proteases (PMs + falcipain-2/3), fast Fe(II) oxidation, and first-order haemozoin formation. No lipid chemistry.
+Same transport and protease network as Model 1, plus a **lipid sequestration factor `φ`** applied to Fe(III)-involving rates.
 
 ---
 
-## Why this model exists
+## What changed vs Model 1 (and why)
 
-Model 1 is the **minimal closed iron path** from host Hb → DV Hb → Fe(II) → Fe(III) → Hz, with host mass balance. It provides a chemically simple baseline: linear uptake, DV plasmepsins **and** falcipain-2/3 at constant PaxDB levels, a single Fe(III) pool, and crystallization at literature `k_hz`.
+**Problem in Model 1:** experiment shows a persistent basal free-haem (Hm) fraction through the trophozoite window, but Model 1’s single Fe³⁺ pool crystallizes at the full lipid-assay `k_hz` (0.12 min⁻¹). On the simulation timescale that drains free Fe³⁺ into Hz too aggressively — there is no standing “non-Hz haem” reservoir.
 
-**What that implies vs experiment (Dd2):** linear uptake leaves most Fe in the host (~84 fg); DV Hb collapses almost immediately (protease capacity ≫ uptake); Hz stays near the seed; there is **no mechanism for a standing basal free-haem (Hm) pool** of the size Garnie reports. Model 2 addresses uptake first.
+**Change:** keep one Fe³⁺ ODE species, but multiply Fe³⁺-consuming rates by an aqueous fraction `φ` ≈ 0.133 derived from lipid volume fraction and `K_partition`:
+
+| Rate | Model 1 | Model 2 |
+|------|---------|---------|
+| `v_hz` | `k_hz · [Fe(III)]` | `k_hz · φ · [Fe(III)]` |
+| `v_red` (if `[O2−]` ≠ 0) | without `φ` | with `φ` |
+| Uptake / proteases / oxidation | — | Unchanged |
+
+**Intent:** interpret `φ` as “only the aqueous-like fraction of Fe³⁺ is reactive,” so most Fe³⁺ is effectively sequestered and free haem can linger.
+
+**Caveat:** `k_hz` itself was measured in **lipid-mediated** β-haematin assays (Egan et al.). Slowing Hz by `φ` < 1 treats lipid as a *sink that inhibits* crystallization — the wrong chemical sign if lipids *catalyse* Hz. This model keeps the rate-hack anyway as a first attempt to leave basal free haem.
 
 ---
 
@@ -21,8 +31,12 @@ Model 1 is the **minimal closed iron path** from host Hb → DV Hb → Fe(II) �
 flowchart LR
   Host["conc_hb_rbc"] -->|"k_hb_trans x host"| HbDV["conc_hb_dv"]
   HbDV -->|"PMs+FP2/3"| Fe2["conc_fe2pp"]
-  Fe2 -->|"k_fe2pp_ox x O2"| Fe3["conc_fe3pp"]
-  Fe3 -->|"k_hz"| Hz["conc_hz"]
+  Fe2 -->|"k_ox x O2"| Fe3["conc_fe3pp<br/>single pool"]
+  Fe3 -->|"k_hz x phi"| Hz["conc_hz"]
+```
+
+```text
+φ = (1 − f_lip) / (1 + f_lip + f_lip × K_partition) ≈ 0.133
 ```
 
 ---
@@ -60,11 +74,14 @@ v_dig = 4 · Σ_i  (60 · kcat_i) · [E]_i,eff · [Hb]_tet
 # Fe(II) → Fe(III) oxidation
 v_ox  = k_fe2_ox · [Fe(II)] · [O2]
 
-# Fe(III) → Fe(II) reduction (off: [O2−] = 0)
-v_red = k_fe3_red · [Fe(III)] · [O2−]
+# Aqueous fraction of Fe(III) (lipid sequestration factor)
+φ = (1 − f_lip) / (1 + f_lip + f_lip · K_partition)
 
-# Haemozoin formation
-v_hz  = k_hz · [Fe(III)]
+# Fe(III) → Fe(II) reduction (off: [O2−] = 0; φ-scaled)
+v_red = k_fe3_red · φ · [Fe(III)] · [O2−]
+
+# Haemozoin formation (φ-scaled)
+v_hz  = k_hz · φ · [Fe(III)]
 ```
 
 ODEs:
@@ -102,6 +119,9 @@ d[Hb]_RBC / dt  = − v_up · V_DV / V_RBC
 | `k_fe3_red` | 180×10⁻⁹ | — | Rate constant for Fe(III)PPIX reduction by O₂⁻ (inactive when `[O2−]` = 0) |
 | `[O2−]` | 0 | M | Superoxide concentration (taken as zero due to SOD) |
 | `k_hz` | 0.12 | min⁻¹ | First-order rate constant for haemozoin formation from Fe(III) |
+| `f_lip` | 0.016 | — | Fractional volume of lipid nanospheres relative to the DV |
+| `K_partition` | 398 | — | Equilibrium partition coefficient of Fe(III)PPIX into lipid |
+| `φ` | ≈ 0.133 | — | Aqueous fraction of Fe(III) at partition equilibrium; multiplies Fe(III) rates |
 
 Enzyme inputs for `v_dig`. `[E]` is **derived** (`ppm × 10⁻⁶ × N_prot / (N_A · V_DV)`), not an independent constant; code converts `kcat` to min⁻¹ as `60 × kcat[s⁻¹]`. Full citations: [`docs/enzyme_kinetics.md`](../enzyme_kinetics.md).
 
@@ -126,33 +146,24 @@ Enzyme inputs for `v_dig`. `[E]` is **derived** (`ppm × 10⁻⁶ × N_prot / (N
 | `kcat_fp_3` | 0.204 | s⁻¹ | Ramjee 2006 FP-3 Leu-Arg FRET peptide |
 | `Km_fp_3` | 4.0×10⁻⁶ | M | Ramjee 2006 FP-3 Leu-Arg FRET peptide |
 
-## Assumptions
+## Assumptions and critique
 
-- Constant linear transport coefficient `k_hb_trans`.
-- Haem-releasing proteases: PM1, PM2, HAP, PM4, FP2, FP3; `[E]` from PaxDB→DV conversion, present at full strength from `t` = 0. Downstream peptidases omitted.
-- Single Fe(III) pool that crystallizes at literature `k_hz`.
-- Fixed DV volume (1 fL).
-
----
-
-## Known behaviour / issues
-
-- Enzyme capacity ≫ uptake → DV Hb collapses immediately. That is a **mechanistic** mismatch (constant full PaxDB `[E]` from `t` = 0), not something to patch in the RHS; Model 2 changes uptake first; enzyme timing is deferred.
-- Free Fe³⁺ is drained by `v_hz = k_hz · [Fe(III)]` with no non-crystallizing reservoir → simulated free haem undershoots Garnie basal Hm.
-- With linear uptake, little host Fe enters the DV over the window, so end Hz stays close to the initial Hz inventory.
+- Partitioning is a **rate multiplier**, not separate aqueous/lipid concentrations — you cannot plot lipid vs aqueous Fe³⁺.
+- Multiplying lipid-assay `k_hz` by `φ` < 1 is chemically inconsistent with lipid-catalysed β-haematin.
+- Same numerical caution as Model 1: full PaxDB `[E]` from `t` = 0 still digests DV Hb almost instantly.
 
 ---
 
 ## Example
 
 ```python
-from haem_kinetics.models.model1 import Model1
+from haem_kinetics.models.legacy.model2 import Model2
 
-Model1().run(
+Model2().run(
     t=[0, 1700],
     init=[0.018, 0.0, 0.0, 0.36],
     t_eval=range(0, 1700, 20),
-    plot='examples/model1.png',
+    plot='examples/model2.png',
     method='BDF',
 )
 ```

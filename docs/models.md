@@ -1,6 +1,6 @@
 # Haem kinetics models
 
-Simulates haemoglobin (Hb) uptake into the *Plasmodium falciparum* digestive vacuole (DV), enzymatic release of haem, Fe(II)→Fe(III) oxidation, and detoxification to haemozoin (Hz). Experimental targets are Combrink-style heme fractionation time courses (fg Fe/cell), primarily **Dd2**.
+Simulates haemoglobin (Hb) uptake into the *Plasmodium falciparum* digestive vacuole (DV), enzymatic release of haem, Fe(II)→Fe(III) oxidation, and detoxification to haemozoin (Hz). Experimental targets are Garnie et al. (*Commun. Biol.* 2025) heme fractionation time courses (fg Fe/cell), primarily **Dd2**.
 
 **Time base:** simulation `t` is in **minutes** from a trophozoite offset of **16 h** post-invasion (`parasite age = 16 + t/60` hours).
 
@@ -10,17 +10,17 @@ Every addition to the ladder must be **mechanistically accountable** (chemistry 
 
 ---
 
-## Model pages
+## Model pages (active ladder)
 
 | Model | File | One-line summary |
 |-------|------|------------------|
 | [Degradation](models/degradation.md) | `degradation.py` | Uptake / Fe(II) release sandbox |
 | [Model 1](models/model1.md) | `model1.py` | Linear uptake; PMs + FP2/3; full Fe speciation; no lipid |
-| [Model 2](models/model2.md) | `model2.py` | Model 1 + lipid factor φ on Fe(III) rates |
-| [Model 3](models/model3.md) | `model3.py` | Exponential uptake; enzymes track `f_exp`; φ on Hz |
-| [Model 4](models/model4.md) | `model4.py` | Aqueous ⇄ lipid Fe(III); Hz from lipid at `k_hz` (no φ) |
-| [Model 5](models/model5.md) | `model5.py` | Model 4 + logistic enzyme clock |
-| [Model 6](models/model6.md) | `model6.py` | Model 5 + crystal-competent Fe(III) pool |
+| [Model 2](models/model2.md) | `model2.py` | Model 1 + empirical `f_exp` uptake (constant `[E]`) |
+
+**Next candidate (not implemented):** Model 3 — Garnie Dd2 dynamic `V_DV(t)` for molar bookkeeping (keep `f_exp` uptake; do not drive uptake from fractionation totals).
+
+**Archived prior ladder** (φ → f_exp+[E] → lipid → logistic → xtal): [`docs/models/legacy/`](models/legacy/README.md) and `haem_kinetics/models/legacy/`.
 
 ---
 
@@ -30,22 +30,16 @@ Every addition to the ladder must be **mechanistically accountable** (chemistry 
 |-------|-----------|-----------|-----------------|-----------------|---------|
 | Degradation | Exponential | PMs | `f_exp` | — | — |
 | 1 | Linear | **PMs + FP2/3** | constant | None | `k_hz × [Fe3]` |
-| 2 | Linear | PMs + FP2/3 | constant | φ on Fe3 rates | `k_hz × φ × [Fe3]` |
-| 3 | `f_exp(t)` | PMs + FP2/3 | `f_exp` | φ on Fe3 rates | same as 2 |
-| 4 | `f_exp(t)` | PMs + FP2/3 | `f_exp` | aq ⇄ lip | `k_hz × [Fe3]_lip` |
-| 5 | `f_exp(t)` | PMs + FP2/3 | **logistic** | aq ⇄ lip | `k_hz × [Fe3]_lip` |
-| 6 | `f_exp(t)` | PMs + FP2/3 | logistic | aq ⇄ lip ⇄ **xtal** | `k_hz × [Fe3]_xtal` |
+| 2 | empirical `f_exp(t)` | PMs + FP2/3 | constant | None | `k_hz × [Fe3]` |
 
 **Incremental ladder:** one mechanistic change per step.
 
 | Step | Problem in previous model | What this model changes |
 |------|---------------------------|-------------------------|
 | 1 | Need a minimal closed Fe path | Linear uptake + PMs + FP2/3 + ox + Hz |
-| 2 | Model 1 drains free Fe³⁺; no basal Hm | Multiply Fe³⁺ rates by φ |
-| 3 | Linear uptake / constant [E] mistimes trophozoite | `f_exp` uptake; proteases track `f_exp` |
-| 4 | φ×`k_hz` wrong for lipid-mediated Hz | Explicit aq ⇄ lip; Hz from lip at full `k_hz` |
-| 5 | Digestion still locked to uptake `f_exp` | **Logistic** `[E]` vs age |
-| 6 | Full `k_hz` on lipid drains free haem | Crystal-competent pool; Hz from xtal only |
+| 2 | Linear uptake leaves most Fe in host | Empirical `f_exp` uptake; `[E]` unchanged |
+
+Model 2’s `f_exp` is a provisional Fe-delivery schedule fit to cumulative DV Fe (see [model2.md](models/model2.md)) — not Garnie lumen volume and not an independent prediction of total Fe. A discarded alternative (piecewise `dF/dt` of the same fractionation totals) was circular and was removed.
 
 `v_dig` includes only proteases that liberate haem from Hb / haem-bearing globin (PMs + falcipains). Downstream peptidases are omitted. Falcipains are present from Model 1 onward (Degradation remains PMs-only as a sandbox).
 
@@ -84,8 +78,7 @@ flowchart LR
 | `v_dig` | Digestion / haem-release rate (M haem-eq / min) |
 | `v_ox` | Fe(II)→Fe(III) oxidation rate |
 | `v_hz` | Haemozoin formation rate |
-| `f_exp(t)` | `a · b · exp(b · t)` with `a` = 0.1578, `b` = 0.001102 |
-| `s_log(t)` | Logistic enzyme scale vs parasite age (Models 5–6) |
+| `f_exp(t)` | Empirical `a · b · exp(b · t)` uptake (Model 2); fit to cumulative DV Fe |
 
 Host mass balance:
 
@@ -144,7 +137,7 @@ Falcipains (fp_2/3) appear from Model 1 onward. `[E]_i` in equations is always t
 v_dig = 4 · Σ_i  (60 · kcat_i) · [E]_i,eff · [Hb]_tet / (Km_i + [Hb]_tet)
 ```
 
-where `[E]_i,eff` is constant (Models 1–2), `f_exp(t)·[E]_i` (Models 3–4 / Degradation), or `s_log(t)·[E]_i` (Models 5–6).
+where `[E]_i,eff` is constant PaxDB `[E]_i` on the active ladder (Models 1–2). Degradation’s sandbox still uses `f_exp`-scaled PMs.
 
 ---
 
@@ -152,36 +145,38 @@ where `[E]_i,eff` is constant (Models 1–2), `f_exp(t)·[E]_i` (Models 3–4 / 
 
 ```bash
 pip install -e .
-python examples/run.py   # writes examples/model1.png … model6.png
+python examples/run.py   # writes examples/model1.png, model2.png, degradation.png
 ```
 
 ```python
-from haem_kinetics.models.model6 import Model6
+from haem_kinetics.models.model2 import Model2
 
-model = Model6()
+model = Model2()
 model.run(
     t=[0, 1700],
-    init=[0.018, 0.0, 0.0, 0.0, 0.0, 0.36],
+    init=[0.018, 0.0, 0.0, 0.36],
     t_eval=range(0, 1700, 20),
-    plot='examples/model6.png',
+    plot='examples/model2.png',
 )
 ```
+
+Legacy imports: `from haem_kinetics.models.legacy import LegacyModel3` (etc.).
 
 ---
 
 ## Cross-cutting issues
 
-1. **φ on `k_hz` (Models 2–3):** chemically inconsistent with lipid-mediated β-haematin; corrected in Model 4.
-2. **Fixed `vol_dv = 1 fL`:** Combrink 2025 reports dynamic Dd2 lumen (~3.7 fL peak).
-3. **Models 1–2:** full PaxDB [E] without an `f_exp` gate digests DV Hb almost instantly.
-4. **NF54 digits** in `experimental_data.py` may not match Combrink 2025; prefer Dd2.
-5. Peptide `kcat`/`Km` (Banerjee/Luker; Ramjee) applied to DV Hb is an approximation — see [`enzyme_kinetics.md`](enzyme_kinetics.md). Model 6 `K_xtal` is provisional. If peptide kinetics over-digest vs Dd2, introduce a dedicated Hb-efficiency step with protein-vs-peptide evidence rather than an uncited rescale.
-6. ppm are Tao 2014 Dd2 whole-organism (not DV-specific).
+1. **Fixed `vol_dv = 1 fL`:** Garnie et al. 2025 reports dynamic Dd2 lumen (~3.7 fL peak). Natural next Model 3 is `V_DV(t)` bookkeeping — not driving uptake from fractionation totals.
+2. **Models 1–2:** full PaxDB `[E]` from `t` = 0 digests DV Hb almost as soon as it arrives — enzyme timing is a competing next step.
+3. **NF54 digits** in `experimental_data.py` may not match Garnie 2025; prefer Dd2.
+4. Peptide `kcat`/`Km` (Banerjee/Luker; Ramjee) applied to DV Hb is an approximation — see [`enzyme_kinetics.md`](enzyme_kinetics.md).
+5. ppm are Tao 2014 Dd2 whole-organism (not DV-specific).
+6. Model 2 `f_exp` is empirical (cumulative DV Fe fit); see [model2.md](models/model2.md).
 
 ---
 
 ## References
 
-- Combrink et al., *Communications Biology* (2025): DV volume, uptake, basal Hb/Hm/Hz.
-- Egan et al., *Malaria Journal* 11:337 (2012): lipid-mediated β-haematin kinetics.
-- Enzyme kcat/Km: [`enzyme_kinetics.md`](enzyme_kinetics.md) (Banerjee 2002; Luker 1996; Ramjee 2006).
+- Garnie LF, Egan TJ, Wicht KJ. Heme processing in the malaria parasite, *Plasmodium falciparum*: a time-dependent basal-level analysis. *Commun. Biol.* (2025) 8:1564. [doi:10.1038/s42003-025-08991-z](https://doi.org/10.1038/s42003-025-08991-z) · [Nature full text](https://www.nature.com/articles/s42003-025-08991-z) · [PDF](https://www.nature.com/articles/s42003-025-08991-z.pdf) · [Figshare raw data](https://doi.org/10.6084/m9.figshare.28801805)
+- Egan TJ, Chen JY, de Villiers KA, et al. Haemozoin (β-haematin) biomineralization requires both a lipid medium and an accelerating structure to promote haem dimerization. *Malaria Journal* (2012) 11:337. [doi:10.1186/1475-2875-11-337](https://doi.org/10.1186/1475-2875-11-337)
+- Enzyme kcat/Km: [`enzyme_kinetics.md`](enzyme_kinetics.md) (Banerjee 2002; Luker 1996; Ramjee 2006 — DOIs listed there).

@@ -1,31 +1,34 @@
-# Model 5
+# Legacy Model 4
 
-**Code:** [`haem_kinetics/models/model5.py`](../../haem_kinetics/models/model5.py)  
-**Up:** [Model index](../models.md) · **Prev:** [Model 4](model4.md) · **Next:** [Model 6](model6.md)
+**Code:** [`haem_kinetics/models/legacy/model4.py`](../../../haem_kinetics/models/legacy/model4.py)  
+**Up:** [Legacy index](README.md) · [Active models](../../models.md) · **Prev:** [Legacy Model 3](model3.md) · **Next:** [Legacy Model 5](model5.md)
 
-**One change vs Model 4:** protease abundance follows a **logistic** maturation curve vs parasite age, independent of uptake `f_exp`.
+Corrects the lipid–haemozoin picture: Fe(III) is split into **aqueous** and **lipid-associated** pools with kinetic exchange, and haemozoin forms from the **lipid pool at literature `k_hz`** — **not** multiplied by `φ`.
 
-Enzymes (PMs + FP2/3), peptide-table `kcat`, and Fe(III) path are unchanged from Model 4.
+Uptake and protease schedule (PMs + FP2/3) remain Model 3-style (`f_exp`).
 
 ---
 
-## What changed vs Model 4 (and why)
+## What changed vs Model 3 (and why)
 
-**Problem in Models 3–4:** `[E]_eff = f_exp(t) × [E]_pax` forces digestion capacity to track the uptake prefactor. Protease maturation is better described as a delayed rise toward a plateau during the trophozoite window — not the same clock as cargo delivery.
+**Problem in Models 2–3:** `φ` was invented to leave basal free haem by *slowing* crystallization. But the tabulated `k_hz` = 0.12 min⁻¹ comes from **lipid-mediated** β-haematin assays (Egan et al.). In that chemistry, lipids *promote* Hz nucleation/growth — they are not a factor that should multiply `k_hz` by ~0.13. Using `φ`×`k_hz` on a single Fe³⁺ pool is therefore the wrong mechanistic story, even if it can numerically raise free haem.
 
-**Concrete change:**
+**What biology suggests instead:**
 
-| Item | Model 4 | Model 5 |
+1. Fe(III)PPIX **partitions** between aqueous DV lumen and lipid bodies (`K_partition`, `f_lip`).
+2. Crystallization occurs in / at the **lipid** environment, so `v_hz` should act on the lipid-associated pool at the **full** assay `k_hz`.
+3. Assay “free haem” can include aqueous Fe³⁺ plus lipid-associated Fe³⁺ that has not yet crystallized — not “Fe³⁺ slowed by `φ`”.
+
+**Concrete changes:**
+
+| Item | Model 3 | Model 4 |
 |------|---------|---------|
-| Proteases | PMs + FP2/3 | **Same** |
-| `[E](t)` | `f_exp(t) × [E]_pax` | `s_log(t) × [E]_pax` |
-| Uptake | `f_exp` | **Same** (now **decoupled** from [E]) |
-| Fe(III) / Hz | aq ⇄ lip → Hz | **Same** |
+| Fe(III) states | One pool | `Fe3_aq` ⇄ `Fe3_lip` with rate `k_lipid_ex` |
+| Equilibrium target | Encoded only as `φ` on rates | `K_eff = (1 − φ) / φ` for lip/aq ratio |
+| `v_hz` | `k_hz · φ · [Fe(III)]` | `k_hz · [Fe(III)]_lip` (**no** `φ`) |
+| Uptake / proteases | `f_exp` | Unchanged |
 
-```text
-s_log(t) = 1 / (1 + exp(−σ · (τ_age − t_mid)))
-τ_age = 16 + t/60                 σ = 0.35 h⁻¹,  t_mid = 26 h
-```
+**Why keep Model 3 proteases here:** so the plot difference vs Model 3 isolates the lipid–Hz fix (same PMs + FP2/3, same `f_exp` schedule).
 
 ---
 
@@ -34,11 +37,13 @@ s_log(t) = 1 / (1 + exp(−σ · (τ_age − t_mid)))
 ```mermaid
 flowchart LR
   Host["conc_hb_rbc"] -->|"f_exp(t)"| HbDV["conc_hb_dv"]
-  HbDV -->|"PMs+FP x s_log"| Fe2["conc_fe2pp"]
+  HbDV -->|"PMs+FP2/3 x f_exp"| Fe2["conc_fe2pp"]
   Fe2 -->|"k_ox x O2"| Fe3aq["conc_fe3pp_aq"]
-  Fe3aq <--> Fe3lip["conc_fe3pp_lip"]
+  Fe3aq -->|"aq ⇄ lip exchange"| Fe3lip["conc_fe3pp_lip"]
   Fe3lip -->|"k_hz"| Hz["conc_hz"]
 ```
+
+**Assay free haem (plotted):** `conc_fe3pp_aq + conc_fe3pp_lip`.
 
 ---
 
@@ -53,27 +58,23 @@ flowchart LR
 | `conc_hz` | Haemozoin |
 | `conc_hb_rbc` | Remaining host Hb |
 
-Init: `[Hb_DV, Fe2, Fe3_aq, Fe3_lip, Hz]`.
+Init: `[Hb_DV, Fe2, Fe3_aq, Fe3_lip, Hz]` (+ host appended).
 
 ---
 
 ## Governing equations
 
-Uptake / digestion / oxidation (logistic enzyme clock):
+Uptake / digestion / oxidation (PMs + falcipains):
 
 ```text
-# Fractional exponential growth (uptake only)
+# Fractional exponential growth (uptake / enzyme clock)
 f_exp(t) = a · b · exp(b · t)     a = 0.1578,  b = 0.001102
-
-# Logistic enzyme maturation vs parasite age
-s_log(t) = 1 / (1 + exp(−σ · (τ_age − t_mid)))
-τ_age = 16 + t/60                 σ = 0.35 h⁻¹,  t_mid = 26 h
 
 # Host → DV Hb uptake (M/min on V_DV)
 v_up = f_exp(t) · [Hb]_RBC · V_RBC / V_DV
 
-# Effective protease concentration (PMs + falcipains; logistic)
-[E]_i,eff = s_log(t) · [E]_i
+# Effective protease concentration (PMs + falcipains)
+[E]_i,eff = f_exp(t) · [E]_i
 i ∈ {plm_1, plm_2, hap, plm_4, fp_2, fp_3}
 
 # Haem release from Hb (MM sum; 4 haem-eq per tetramer)
@@ -131,11 +132,8 @@ d[Hb]_RBC / dt      = − v_up · V_DV / V_RBC
 
 | Constant | Value | Units | Description |
 |----------|------:|-------|-------------|
-| `a` | 0.1578 | — | Prefactor in fractional exponential growth `f_exp(t)` (uptake only) |
-| `b` | 0.001102 | min⁻¹ | Rate constant in fractional exponential growth `f_exp(t)` (uptake only) |
-| `σ` | 0.35 | h⁻¹ | Steepness of the logistic enzyme-maturation curve |
-| `t_mid` | 26 | h | Midpoint age (h post-invasion) of the logistic enzyme-maturation curve |
-| `t0` | 16 | h | Simulation time origin in hours post-invasion |
+| `a` | 0.1578 | — | Prefactor in fractional exponential growth `f_exp(t)` |
+| `b` | 0.001102 | min⁻¹ | Rate constant in fractional exponential growth `f_exp(t)` |
 | `V_RBC` | 90×10⁻¹⁵ | L | Volume of the host red blood cell |
 | `V_DV` | 1×10⁻¹⁵ | L | Fixed digestive-vacuole volume used for M ↔ fg conversion |
 | `N_A` | 6.022×10²³ | mol⁻¹ | Avogadro's number |
@@ -173,22 +171,30 @@ Enzyme inputs for `v_dig`. `[E]` is **derived** (`ppm × 10⁻⁶ × N_prot / (N
 | `kcat_fp_3` | 0.204 | s⁻¹ | Ramjee 2006 FP-3 Leu-Arg FRET peptide |
 | `Km_fp_3` | 4.0×10⁻⁶ | M | Ramjee 2006 FP-3 Leu-Arg FRET peptide |
 
-## Behaviour vs Model 4
+## Assumptions
 
-- Early digestion weaker, later stronger → HbDV/Hz *shape* can change even if end Hz is similar.
-- Free-haem chemistry remains aq ⇄ lip → Hz at full `k_hz` on the lipid pool.
+- Fast exchange (`k_lipid_exchange`) keeps aq/lip near partition equilibrium.
+- Lipids both sequester Fe(III) **and** provide the crystallizing environment (Hz from lip at full `k_hz`).
+- Proteases (PMs + FP2/3) are still tied to `f_exp` — digestion timing may not match Dd2 even when end Hz improves.
+
+---
+
+## Behaviour notes
+
+- With full `k_hz` on the lipid pool, lipid Fe³⁺ can still crystallize quickly; plotted free haem (`aq+lip`) can undershoot Combrink basal Hm.
+- Enzyme schedule is still locked to the uptake prefactor (`f_exp`); Model 5 decouples that with a logistic clock.
 
 ---
 
 ## Example
 
 ```python
-from haem_kinetics.models.model5 import Model5
+from haem_kinetics.models.legacy.model4 import Model4
 
-Model5().run(
+Model4().run(
     t=[0, 1700],
     init=[0.018, 0.0, 0.0, 0.0, 0.36],
     t_eval=range(0, 1700, 20),
-    plot='examples/model5.png',
+    plot='examples/model4.png',
 )
 ```

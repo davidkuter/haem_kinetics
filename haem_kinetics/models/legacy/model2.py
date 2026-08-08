@@ -3,23 +3,20 @@ import pandas as pd
 from typing import List, Optional
 
 from haem_kinetics.models.base import KineticsModel
-from haem_kinetics.models.helpers import fraction_exp_growth
 from haem_kinetics.components.experimental_data import ExperimentalData
 
 
 class Model2(KineticsModel):
     """
-    Model 1 + accelerating host→DV uptake via f_exp(t).
-
-    Protease levels stay at constant PaxDB [E] (no enzyme clock).
-    Single Fe(III) pool; no lipid φ. f_exp is not V_DV(t).
+    Linear Hb transport with lipid sequestration factor φ on Fe(III) rates.
+    Host [Hb]_RBC is depleted by uptake. Concentrations kept non-negative in the RHS.
     """
 
     DV_SPECIES = ['conc_hb_dv', 'conc_fe2pp', 'conc_fe3pp', 'conc_hz']
 
     def __init__(self, model_name: str = 'Model 2'):
         super().__init__(model_name=model_name)
-        self._set_initial_conc(init=[0.005, 0.0, 0.0, 0.0, self._full_hb_rbc_m()])
+        self._set_initial_conc(init=[0.000, 0.0, 0.0, 0.0, self._full_hb_rbc_m()])
         self.exp_data = ExperimentalData()
         self.exp_data.no_drug_dd2()
 
@@ -43,12 +40,11 @@ class Model2(KineticsModel):
             deg += self._calc_enzyme_rate(enzyme, conc_hb_tetramer)
         return 4.0 * deg * conc_hb_tetramer
 
-    def _uptake_dv(self, t):
+    def _uptake_dv(self):
         host = self._nonneg(self.initial_values[self.HOST_KEY])
         if host <= 0.0:
             return 0.0
-        tot_hb_conc = host * self.const.vol_rbc / self.const.vol_dv
-        return fraction_exp_growth(t) * tot_hb_conc
+        return self.const.k_hb_trans * host
 
     def _ox_rate(self):
         fe2 = self._nonneg(self.initial_values['conc_fe2pp'])
@@ -57,26 +53,30 @@ class Model2(KineticsModel):
         return self.const.k_fe2pp_ox * fe2 * self.const.conc_oxy
 
     def _hz_rate(self):
+        phi = self.const.compute_lipid_seq_constant()
         fe3 = self._nonneg(self.initial_values['conc_fe3pp'])
         if fe3 <= 0.0:
             return 0.0
-        return self.const.k_hz * fe3
+        return self.const.k_hz * phi * fe3
 
-    def _d_hb_dv(self, t):
-        return self._uptake_dv(t) - self._hb_removal()
+    def _d_hb_dv(self):
+        return self._uptake_dv() - self._hb_removal()
 
     def _d_fe2pp(self):
+        phi = self.const.compute_lipid_seq_constant()
         form = self._hb_removal() + (
             self.const.k_fe3pp_red
+            * phi
             * self._nonneg(self.initial_values['conc_fe3pp'])
             * self.const.conc_supoxy
         )
         return form - self._ox_rate()
 
     def _d_fe3pp(self):
+        phi = self.const.compute_lipid_seq_constant()
         fe3 = self._nonneg(self.initial_values['conc_fe3pp'])
         remove = (
-            self.const.k_fe3pp_red * fe3 * self.const.conc_supoxy
+            self.const.k_fe3pp_red * phi * fe3 * self.const.conc_supoxy
         ) + self._hz_rate()
         return self._ox_rate() - remove
 
@@ -97,9 +97,9 @@ class Model2(KineticsModel):
     def _integrate(self, t, init):
         raw = [float(x) for x in init]
         self._set_initial_conc(init=raw)
-        uptake = self._uptake_dv(t)
+        uptake = self._uptake_dv()
         dydt = [
-            self._d_hb_dv(t),
+            self._d_hb_dv(),
             self._d_fe2pp(),
             self._d_fe3pp(),
             self._d_hz(),

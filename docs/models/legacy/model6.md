@@ -1,7 +1,7 @@
-# Model 6
+# Legacy Model 6
 
-**Code:** [`haem_kinetics/models/model6.py`](../../haem_kinetics/models/model6.py)  
-**Up:** [Model index](../models.md) · **Prev:** [Model 5](model5.md)
+**Code:** [`haem_kinetics/models/legacy/model6.py`](../../../haem_kinetics/models/legacy/model6.py)  
+**Up:** [Legacy index](README.md) · [Active models](../../models.md) · **Prev:** [Legacy Model 5](model5.md)
 
 **One change vs Model 5:** Fe(III) path gains a **crystal-competent** pool so basal free haem can persist while Hz still uses literature `k_hz`.
 
@@ -193,7 +193,7 @@ Enzyme inputs for `v_dig`. `[E]` is **derived** (`ppm × 10⁻⁶ × N_prot / (N
 ## Example
 
 ```python
-from haem_kinetics.models.model6 import Model6
+from haem_kinetics.models.legacy.model6 import Model6
 
 Model6().run(
     t=[0, 1700],

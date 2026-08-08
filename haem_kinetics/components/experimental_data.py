@@ -1,3 +1,9 @@
+"""Heme fractionation time courses used as experimental targets.
+
+Primary Dd2 / NF54 digits: Garnie LF, Egan TJ, Wicht KJ.
+*Commun. Biol.* (2025) 8:1564. https://doi.org/10.1038/s42003-025-08991-z
+Raw / related files: data/garnie/ (Figshare https://doi.org/10.6084/m9.figshare.28801805).
+"""
 import pandas as pd
 
 
@@ -24,6 +30,7 @@ class ExperimentalData:
         self.data = self.data.merge(df_temp, left_index=True, right_index=True)
 
     def no_drug_nf54(self):
+        """NF54 no-drug fractionation (fg Fe/cell); prefer Dd2 for Garnie 2025 alignment."""
         self.time = [21, 24, 27, 30, 33, 36, 39, 41, 44, 47]  # In hours
 
         # Haemoglobin: fg/cell, SEM
@@ -46,6 +53,7 @@ class ExperimentalData:
         self._convert_to_dataframe()
 
     def no_drug_dd2(self):
+        """Dd2 no-drug fractionation (fg Fe/cell) — Garnie et al. Commun. Biol. 2025."""
         self.time = [20, 23, 26, 29, 32, 35, 38, 41, 44]  # In hours
 
         # Haemoglobin: fg/cell, SEM

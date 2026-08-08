@@ -1,7 +1,7 @@
-# Model 3
+# Legacy Model 3
 
-**Code:** [`haem_kinetics/models/model3.py`](../../haem_kinetics/models/model3.py)  
-**Up:** [Model index](../models.md) · **Prev:** [Model 2](model2.md) · **Next:** [Model 4](model4.md)
+**Code:** [`haem_kinetics/models/legacy/model3.py`](../../../haem_kinetics/models/legacy/model3.py)  
+**Up:** [Legacy index](README.md) · [Active models](../../models.md) · **Prev:** [Legacy Model 2](model2.md) · **Next:** [Legacy Model 4](model4.md)
 
 Replaces linear uptake with **exponential fractional growth** of remaining host Hb, and scales haem-releasing protease levels (PMs + FP2/3) with the same `f_exp(t)`. Keeps Model 2’s `φ` multiplier on Fe(III) rates.
 
@@ -165,7 +165,7 @@ Enzyme inputs for `v_dig`. `[E]` is **derived** (`ppm × 10⁻⁶ × N_prot / (N
 ## Example
 
 ```python
-from haem_kinetics.models.model3 import Model3
+from haem_kinetics.models.legacy.model3 import Model3
 
 Model3().run(
     t=[0, 1700],

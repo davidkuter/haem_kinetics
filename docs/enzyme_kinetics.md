@@ -10,7 +10,7 @@ Shared assignment for `k_enzymes` in [`haem_kinetics/components/constants.py`](.
 v_dig = 4 · Σ_i  (60 · kcat_i) · [E]_i,eff · [Hb]_tet / (Km_i + [Hb]_tet)
 ```
 
-with `kcat` stored in s⁻¹ and converted to min⁻¹ in code. Peptide `kcat`/`Km` applied to tetrameric Hb haem-equivalents is an explicit approximation; if digestion is too fast relative to Combrink Dd2, the accountable next step is a dedicated Hb-efficiency factor grounded in protein-vs-peptide data — not an uncited rescale of `kcat`.
+with `kcat` stored in s⁻¹ and converted to min⁻¹ in code. Peptide `kcat`/`Km` applied to tetrameric Hb haem-equivalents is an explicit approximation; if digestion is too fast relative to Garnie Dd2, the accountable next step is a dedicated Hb-efficiency factor grounded in protein-vs-peptide data — not an uncited rescale of `kcat`.
 
 ## Assigned values (code defaults)
 
