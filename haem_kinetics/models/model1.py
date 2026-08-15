@@ -10,6 +10,9 @@ class Model1(KineticsModel):
     """
     Baseline full speciation: linear uptake, PMs + FP2/3, Fe(II) oxidation, first-order Hz.
     Host [Hb]_RBC is depleted by uptake. Concentrations are kept non-negative in the RHS.
+
+    variable_dv_volume is shared bookkeeping (dilution, [E] = n_E/V(t),
+    fg = C·V), not this model's mechanistic change.
     """
 
     DV_SPECIES = ['conc_hb_dv', 'conc_fe2pp', 'conc_fe3pp', 'conc_hz']
@@ -20,31 +23,36 @@ class Model1(KineticsModel):
         self.exp_data = ExperimentalData()
         self.exp_data.no_drug_dd2()
 
-    def _calc_enzyme_rate(self, enzyme, conc_hb_tetramer):
+    def _calc_enzyme_rate(self, enzyme, conc_hb_tetramer, t):
         if conc_hb_tetramer <= 0.0:
             return 0.0
         kcat = self.const.k_enzymes[enzyme]['kcat'] * 60
         Km = self.const.k_enzymes[enzyme]['Km']
-        conc_enzyme = self.const.conc_enzymes[enzyme]
+        conc_enzyme = self._enzyme_conc(enzyme, t)
         denom = Km + conc_hb_tetramer
         if denom <= 0.0:
             return 0.0
         return kcat * conc_enzyme / denom
 
-    def _hb_removal(self):
+    def _hb_removal(self, t):
         conc_hb_tetramer = self._nonneg(self.initial_values['conc_hb_dv']) / 4.0
         if conc_hb_tetramer <= 0.0:
             return 0.0
         deg = 0.0
         for enzyme in ['plm_1', 'plm_2', 'hap', 'plm_4', 'fp_2', 'fp_3']:
-            deg += self._calc_enzyme_rate(enzyme, conc_hb_tetramer)
+            deg += self._calc_enzyme_rate(enzyme, conc_hb_tetramer, t)
         return 4.0 * deg * conc_hb_tetramer
 
-    def _uptake_dv(self):
+    def _uptake_dv(self, t):
+        """Linear host→DV appearance (M/min on V_DV(t)).
+
+        `k_hb_trans` was defined as a concentration rate at the 1 fL reference;
+        scaling by V_ref/V(t) keeps the mole delivery independent of lumen size.
+        """
         host = self._nonneg(self.initial_values[self.HOST_KEY])
         if host <= 0.0:
             return 0.0
-        return self.const.k_hb_trans * host
+        return self.const.k_hb_trans * host * self.const.vol_dv / self._vol_dv(t)
 
     def _ox_rate(self):
         fe2 = self._nonneg(self.initial_values['conc_fe2pp'])
@@ -58,33 +66,36 @@ class Model1(KineticsModel):
             return 0.0
         return self.const.k_hz * fe3
 
-    def _d_hb_dv(self):
-        return self._uptake_dv() - self._hb_removal()
+    def _d_hb_dv(self, t):
+        hb = self._nonneg(self.initial_values['conc_hb_dv'])
+        return self._uptake_dv(t) - self._hb_removal(t) + self._dilution(t, hb)
 
-    def _d_fe2pp(self):
-        form = self._hb_removal() + (
+    def _d_fe2pp(self, t):
+        fe2 = self._nonneg(self.initial_values['conc_fe2pp'])
+        form = self._hb_removal(t) + (
             self.const.k_fe3pp_red
             * self._nonneg(self.initial_values['conc_fe3pp'])
             * self.const.conc_supoxy
         )
-        return form - self._ox_rate()
+        return form - self._ox_rate() + self._dilution(t, fe2)
 
-    def _d_fe3pp(self):
+    def _d_fe3pp(self, t):
         fe3 = self._nonneg(self.initial_values['conc_fe3pp'])
         remove = (
             self.const.k_fe3pp_red * fe3 * self.const.conc_supoxy
         ) + self._hz_rate()
-        return self._ox_rate() - remove
+        return self._ox_rate() - remove + self._dilution(t, fe3)
 
-    def _d_hz(self):
-        return self._hz_rate()
+    def _d_hz(self, t):
+        hz = self._nonneg(self.initial_values['conc_hz'])
+        return self._hz_rate() + self._dilution(t, hz)
 
     def _set_initial_conc(self, init: List[float]):
         if len(init) == len(self.DV_SPECIES):
             init = self._pad_init_with_host(init)
         if len(init) != len(self.DV_SPECIES) + 1:
             raise ValueError(
-                'Model1 requires 4 DV values [Hb_DV, Fe2, Fe3, Hz], '
+                f'{type(self).__name__} requires 4 DV values [Hb_DV, Fe2, Fe3, Hz], '
                 'optionally with host [Hb]_RBC appended'
             )
         for key, val in zip(self.DV_SPECIES + [self.HOST_KEY], init):
@@ -93,20 +104,21 @@ class Model1(KineticsModel):
     def _integrate(self, t, init):
         raw = [float(x) for x in init]
         self._set_initial_conc(init=raw)
-        uptake = self._uptake_dv()
+        uptake = self._uptake_dv(t)
         dydt = [
-            self._d_hb_dv(),
-            self._d_fe2pp(),
-            self._d_fe3pp(),
-            self._d_hz(),
-            self._d_host_from_dv_uptake(uptake),
+            self._d_hb_dv(t),
+            self._d_fe2pp(t),
+            self._d_fe3pp(t),
+            self._d_hz(t),
+            self._d_host_from_dv_uptake(uptake, t),
         ]
         return dydt
 
     def run(self, t, init: Optional[List[float]] = None, plot: Optional[str] = None, **kwargs):
         if init is None:
             init = [0.0, 0.0, 0.0, 0.0]
-        y0 = self._pad_init_with_host(init) if len(init) == len(self.DV_SPECIES) else list(init)
+        t0 = float(t[0]) if t is not None else 0.0
+        y0 = self._prepare_y0(init, t0=t0)
 
         self.solution = self._solve_ivp(self._integrate, t, y0, **kwargs)
         self.time = 16 + self.solution.t / 60

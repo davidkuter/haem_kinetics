@@ -23,6 +23,7 @@ class Model6(KineticsModel):
     so most lipid-associated Fe can remain assayable free haem.
     """
 
+    variable_dv_volume = False
     DV_SPECIES = [
         'conc_hb_dv',
         'conc_fe2pp',

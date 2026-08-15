@@ -13,6 +13,7 @@ class Model3(KineticsModel):
     Host [Hb]_RBC depleted by uptake. Concentrations kept non-negative in the RHS.
     """
 
+    variable_dv_volume = False
     DV_SPECIES = ['conc_hb_dv', 'conc_fe2pp', 'conc_fe3pp', 'conc_hz']
 
     def __init__(self, model_name: str = 'Model 3'):

@@ -1,3 +1,5 @@
+import math
+
 
 class Constants:
     def __init__(self):
@@ -9,9 +11,9 @@ class Constants:
 
         # - Volumes
         self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
-        # Fixed DV volume for Models 1–2. Model 3 uses Garnie Dd2 V_DV(t) instead.
-        # Garnie et al. Commun. Biol. 2025 reports Dd2 lumen peaking near ~3.7 fL (dynamic).
-        self.vol_dv = 1e-15  # L (1 fL) — fixed-volume models only
+        # Reference DV volume (1 fL) for the init API and PaxDB amount
+        # n_E = [E]_1fL · 1 fL. Active models convert to molarity with variable_dv_volume.
+        self.vol_dv = 1e-15  # L (1 fL) — reference, not the integrated lumen volume
         self.vol_fract_lip = 0.016  # Fractional volume of a lipid nanosphere relative to the DV volume
 
         # - Other
@@ -62,12 +64,14 @@ class Constants:
         self.k_fe3pp_red = 180e-9
         # - Rate of haemozoin formation (lipid-mediated β-haematin)
         #   https://link.springer.com/article/10.1186/1475-2875-11-337
-        #   Apply to the crystal-competent Fe(III) pool (Model 6), not bulk lipid haem.
+        #   Active Model 6: apply to lipid-associated Fe(III), not bulk aqueous haem.
+        #   Do not multiply by φ. Crystal-competent (xtal) is a later step if needed.
         self.k_hz = 0.12  # min-1
         # - Aqueous <-> lipid Fe(III) exchange; large => near-equilibrium partition
         self.k_lipid_exchange = 50.0  # min-1
-        # - Lipid-associated <-> crystal-competent Fe(III) exchange (Model 6)
-        #   Keeps most non-Hz Fe in the assay "free haem" pools (aq + lip).
+        # - Lipid-associated <-> crystal-competent Fe(III) exchange
+        #   Not used in active Model 6 (aq ⇄ lip only). Kept for a later numbered
+        #   model / legacy Model 6 if assay Hm still drains.
         self.k_xtal_exchange = 5.0  # min-1
         self.K_xtal = 0.08  # [Fe3]_xtal / [Fe3]_lip at equilibrium
         # - Enzyme rate constants (peptide-substrate MM; see docs/enzyme_kinetics.md)
@@ -84,6 +88,26 @@ class Constants:
             'fp_2': {'kcat': 0.79, 'Km': 0.9e-6},    # s-1, M — Ramjee FP-2 best FRET
             'fp_3': {'kcat': 0.204, 'Km': 4.0e-6},   # s-1, M — Ramjee FP-3 Leu-Arg FRET
         }
+        # Native tetramer (Models 4a/4b). No paper reports kcat on native Hb in s-1.
+        # Gluzman et al. JCI 1994: equal globin-degrading units, PM I is considerably
+        # more active on native Hb than PM II — using PM II's peptide kcat (11 s-1)
+        # would invert that ranking. PM I peptide kcat is used as a provisional
+        # native kcat for PM I; PM II native kcat is set equal to that value (not
+        # 11). FP-2 keeps its peptide kcat (Shenai 2000: FP-2 does cut native Hb;
+        # Vmax is already ~4 fg/h). Not fit to Garnie standing Hb.
+        # https://doi.org/10.1172/jci117140
+        self.k_enzymes_native = {
+            'plm_1': {'kcat': 2.3, 'Km': 0.49e-6},
+            'plm_2': {'kcat': 2.3, 'Km': 2.6e-6},
+            'fp_2': {'kcat': 0.79, 'Km': 0.9e-6},
+        }
+        # HTV / inner-vesicle cargo → lumen (Model 5). First-order; lumps traffic,
+        # outer fusion, and inner-membrane lysis. Klemba JCB 2004: if PM II is
+        # trafficked exclusively through the cytostome, delivery t½ is < 20 min
+        # (PM biosynthesis/maturation t½ ≈ 20 min; Francis 1997; Banerjee 2003).
+        # Provisional: use that 20 min bound, not a Garnie standing-Hb fit.
+        # https://doi.org/10.1083/jcb.200307147
+        self.k_htv_release = math.log(2) / 20.0  # min-1
 
         # -------------------------------------------------------------------------------------
         # Equilibrium constants

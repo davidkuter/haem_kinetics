@@ -3,7 +3,7 @@
 **Code:** [`haem_kinetics/models/model1.py`](../../haem_kinetics/models/model1.py)  
 **Up:** [Model index](../models.md) · **Next:** [Model 2](model2.md)
 
-Baseline full speciation model: **linear** host→DV uptake, haem-releasing proteases (PMs + falcipain-2/3), fast Fe(II) oxidation, and first-order haemozoin formation. No lipid chemistry.
+Baseline full speciation model: **linear** host→DV uptake, haem-releasing proteases (PMs + falcipain-2/3), fast Fe(II) oxidation, and first-order haemozoin formation. No lipid chemistry. Variable `V_DV(t)` (`variable_dv_volume`) is **shared bookkeeping** (dilution, `[E] = n_E / V(t)`, fg = `C·V`) — not this model’s mechanistic change.
 
 ---
 
@@ -46,11 +46,12 @@ Init API: `[Hb_DV, Fe2, Fe3, Hz]`.
 Auxiliary rates:
 
 ```text
-# Host → DV Hb uptake (linear; M/min on V_DV)
-v_up = k_hb_trans · [Hb]_RBC
+# Host → DV Hb uptake (linear; M/min on V_DV(t))
+# k_hb_trans is the 1 fL-reference coefficient; V_ref/V keeps mole delivery independent of lumen size
+v_up = k_hb_trans · [Hb]_RBC · V_DV,ref / V_DV(t)
 
-# Effective protease concentration (constant PaxDB [E]; PMs + falcipains)
-[E]_i,eff = [E]_i
+# Effective protease concentration (PaxDB amount; molarity follows V(t))
+[E]_i,eff = n_E,i / V_DV(t)
 i ∈ {plm_1, plm_2, hap, plm_4, fp_2, fp_3}
 
 # Haem release from Hb (MM sum; 4 haem-eq per tetramer)
@@ -65,25 +66,28 @@ v_red = k_fe3_red · [Fe(III)] · [O2−]
 
 # Haemozoin formation
 v_hz  = k_hz · [Fe(III)]
+
+# Dilution / concentration from dV/dt (shared bookkeeping)
+dil(C) = − C · (dV_DV/dt) / V_DV
 ```
 
 ODEs:
 
 ```text
 # DV haemoglobin
-d[Hb]_DV / dt   = v_up − v_dig
+d[Hb]_DV / dt   = v_up − v_dig + dil([Hb]_DV)
 
 # Free Fe(II)PPIX
-d[Fe(II)] / dt  = v_dig + v_red − v_ox
+d[Fe(II)] / dt  = v_dig + v_red − v_ox + dil([Fe(II)])
 
 # Free Fe(III)PPIX
-d[Fe(III)] / dt = v_ox − v_red − v_hz
+d[Fe(III)] / dt = v_ox − v_red − v_hz + dil([Fe(III)])
 
 # Haemozoin
-d[Hz] / dt      = v_hz
+d[Hz] / dt      = v_hz + dil([Hz])
 
 # Remaining host RBC Hb
-d[Hb]_RBC / dt  = − v_up · V_DV / V_RBC
+d[Hb]_RBC / dt  = − v_up · V_DV(t) / V_RBC
 ```
 
 ---
@@ -94,7 +98,8 @@ d[Hb]_RBC / dt  = − v_up · V_DV / V_RBC
 |----------|------:|-------|-------------|
 | `k_hb_trans` | ≈ 3.79×10⁻⁴ | min⁻¹ | First-order coefficient for host → DV Hb uptake |
 | `V_RBC` | 90×10⁻¹⁵ | L | Volume of the host red blood cell |
-| `V_DV` | 1×10⁻¹⁵ | L | Fixed digestive-vacuole volume used for M ↔ fg conversion |
+| `V_DV,ref` | 1×10⁻¹⁵ | L | Reference DV volume (init API and PaxDB `n_E`) |
+| `V_DV(t)` | variable | L | Shared lumen bookkeeping (`variable_dv_volume`; see [models.md](../models.md#shared-framework)) |
 | `N_A` | 6.022×10²³ | mol⁻¹ | Avogadro's number |
 | `N_prot` | 1.9×10⁸ | — | Average number of proteins per *P. falciparum* cell |
 | `k_fe2_ox` | 193800 | min⁻¹ | Rate constant for Fe(II)PPIX oxidation by O₂ |
@@ -103,7 +108,7 @@ d[Hb]_RBC / dt  = − v_up · V_DV / V_RBC
 | `[O2−]` | 0 | M | Superoxide concentration (taken as zero due to SOD) |
 | `k_hz` | 0.12 | min⁻¹ | First-order rate constant for haemozoin formation from Fe(III) |
 
-Enzyme inputs for `v_dig`. `[E]` is **derived** (`ppm × 10⁻⁶ × N_prot / (N_A · V_DV)`), not an independent constant; code converts `kcat` to min⁻¹ as `60 × kcat[s⁻¹]`. Full citations: [`docs/enzyme_kinetics.md`](../enzyme_kinetics.md).
+Enzyme inputs for `v_dig`. `[E]` is **derived** (`n_E / V_DV(t)` with `n_E` from PaxDB at `V_DV,ref`), not an independent constant; code converts `kcat` to min⁻¹ as `60 × kcat[s⁻¹]`. Full citations: [`docs/enzyme_kinetics.md`](../enzyme_kinetics.md).
 
 | Constant | Value | Units | Description |
 |----------|------:|-------|-------------|
@@ -128,18 +133,33 @@ Enzyme inputs for `v_dig`. `[E]` is **derived** (`ppm × 10⁻⁶ × N_prot / (N
 
 ## Assumptions
 
-- Constant linear transport coefficient `k_hb_trans`.
-- Haem-releasing proteases: PM1, PM2, HAP, PM4, FP2, FP3; `[E]` from PaxDB→DV conversion, present at full strength from `t` = 0. Downstream peptidases omitted.
+- Constant linear transport coefficient `k_hb_trans` (mole rate independent of `V_DV(t)`).
+- Haem-releasing proteases: PM1, PM2, HAP, PM4, FP2, FP3; PaxDB **amount** present at full strength from `t` = 0. Downstream peptidases omitted.
 - Single Fe(III) pool that crystallizes at literature `k_hz`.
-- Fixed DV volume (1 fL).
+- Shared `variable_dv_volume` for molar bookkeeping (not a Model 1 mechanism).
 
 ---
 
 ## Known behaviour / issues
 
-- Enzyme capacity ≫ uptake → DV Hb collapses immediately. That is a **mechanistic** mismatch (constant full PaxDB `[E]` from `t` = 0), not something to patch in the RHS; Model 2 changes uptake first; enzyme timing is deferred.
+- Enzyme capacity ≫ uptake → DV Hb collapses immediately. That is a **mechanistic** mismatch (full PaxDB amount from `t` = 0), not something to patch in the RHS; Model 2 changes uptake first; Model 3 adds a blot-derived amount clock.
 - Free Fe³⁺ is drained by `v_hz = k_hz · [Fe(III)]` with no non-crystallizing reservoir → simulated free haem undershoots Garnie basal Hm.
 - With linear uptake, little host Fe enters the DV over the window, so end Hz stays close to the initial Hz inventory.
+
+---
+
+## Fit vs Garnie Dd2
+
+Protocol and definitions: [models.md](../models.md#fit-vs-garnie-dd2-tracking).
+
+| Series | RMSE (fg/cell) | MAE | mean signed error | χ²_red | n |
+|--------|---------------:|----:|-----:|-------:|--:|
+| Hb | 1.91 | 1.87 | −1.87 | 37.13 | 9 |
+| Hm | 3.63 | 3.36 | −3.36 | 284 | 9 |
+| Hz | 37.66 | 29.22 | −29.22 | 9.84 | 9 |
+| DV Fe | 42.76 | 34.46 | −34.46 | 13.70 | 9 |
+
+Mean signed error < 0: model is low on average. On this model it equals −MAE for every series (always below the assay). Hz and internalized Fe are far below the assay because uptake never delivers the trophozoite Fe budget. Hb RMSE looks modest only because standing DV Hb is ~2 fg — the model is ~0, so it still misses the pool (χ²_red = 37).
 
 ---
 

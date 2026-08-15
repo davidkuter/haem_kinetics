@@ -1,9 +1,9 @@
-import math
 import pandas as pd
 
 from typing import List, Optional
 
 from haem_kinetics.models.base import KineticsModel
+from haem_kinetics.models.helpers import fraction_exp_growth
 from haem_kinetics.components.experimental_data import ExperimentalData
 
 
@@ -11,6 +11,8 @@ class Degradation(KineticsModel):
     """
     Sandbox for Hb uptake / enzymatic release of Fe(II). No Fe(III)/Hz ODEs.
     Host depleted by uptake. Concentrations kept non-negative in the RHS.
+    Uses shared variable_dv_volume for molar bookkeeping (same fg conversion
+    as Models 1–3). The Hb ODE still omits digestion — diagnostic, not closed Fe.
     """
 
     DV_SPECIES = ['conc_hb_dv', 'conc_fe2pp']
@@ -26,10 +28,7 @@ class Degradation(KineticsModel):
             return 0.0
         kcat = self.const.k_enzymes[enzyme]['kcat'] * 60
         Km = self.const.k_enzymes[enzyme]['Km']
-        conc_enzyme = (
-            self._fraction_exp_growth(t)
-            * self.const.conc_enzymes[enzyme]
-        )
+        conc_enzyme = fraction_exp_growth(t) * self._enzyme_conc(enzyme, t)
         denom = Km + conc_hb_tetramer
         if denom <= 0.0:
             return 0.0
@@ -44,24 +43,20 @@ class Degradation(KineticsModel):
             deg += self._calc_enzyme_rate(enzyme, conc_hb_tetramer, t)
         return 4.0 * deg * conc_hb_tetramer
 
-    @staticmethod
-    def _fraction_exp_growth(t):
-        a = 0.1578
-        b = 0.001102
-        return a * b * (math.e ** (b * t))
-
     def _uptake_dv(self, t):
         host = self._nonneg(self.initial_values[self.HOST_KEY])
         if host <= 0.0:
             return 0.0
-        tot_hb_conc = host * self.const.vol_rbc / self.const.vol_dv
-        return self._fraction_exp_growth(t) * tot_hb_conc
+        tot_hb_conc = host * self.const.vol_rbc / self._vol_dv(t)
+        return fraction_exp_growth(t) * tot_hb_conc
 
     def _d_hb_dv_kuter(self, t):
-        return self._uptake_dv(t) - 0.0
+        hb = self._nonneg(self.initial_values['conc_hb_dv'])
+        return self._uptake_dv(t) + self._dilution(t, hb)
 
     def _d_fe2pp(self, t):
-        return self._hb_removal(t=t)
+        fe2 = self._nonneg(self.initial_values['conc_fe2pp'])
+        return self._hb_removal(t=t) + self._dilution(t, fe2)
 
     def _set_initial_conc(self, init: List[float]):
         if len(init) == len(self.DV_SPECIES):
@@ -80,14 +75,15 @@ class Degradation(KineticsModel):
         dydt = [
             self._d_hb_dv_kuter(t),
             self._d_fe2pp(t),
-            self._d_host_from_dv_uptake(uptake),
+            self._d_host_from_dv_uptake(uptake, t),
         ]
         return dydt
 
     def run(self, t, init: Optional[List[float]] = None, plot: Optional[str] = None, **kwargs):
         if init is None:
             init = [0.0, 0.0]
-        y0 = self._pad_init_with_host(init) if len(init) == len(self.DV_SPECIES) else list(init)
+        t0 = float(t[0]) if t is not None else 0.0
+        y0 = self._prepare_y0(init, t0=t0)
 
         self.solution = self._solve_ivp(self._integrate, t, y0, **kwargs)
         self.time = 16 + self.solution.t / 60

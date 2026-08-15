@@ -22,6 +22,7 @@ class Model5(KineticsModel):
     Fe(III) path unchanged: aq ⇄ lip → Hz.
     """
 
+    variable_dv_volume = False
     DV_SPECIES = [
         'conc_hb_dv',
         'conc_fe2pp',

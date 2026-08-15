@@ -14,6 +14,7 @@ class Model4(KineticsModel):
     Concentrations kept non-negative in the RHS.
     """
 
+    variable_dv_volume = False
     DV_SPECIES = [
         'conc_hb_dv',
         'conc_fe2pp',

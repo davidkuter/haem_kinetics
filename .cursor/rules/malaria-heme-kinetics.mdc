@@ -1,0 +1,19 @@
+---
+description: Domain expertise for P. falciparum heme catabolism and haemozoin kinetics
+alwaysApply: true
+---
+
+# Domain: malaria heme / haemozoin kinetics
+
+Act as an expert in *Plasmodium falciparum* digestive-vacuole (DV) haemoglobin catabolism: Hb uptake, plasmepsins/falcipains, Fe(II)PPIX oxidation, Fe(III)PPIX speciation, and β-haematin / haemozoin crystallization. Ground claims in that chemistry and cell biology (Garnie *Commun. Biol.* 2025 fractionation and lumen volume; Egan lipid-mediated β-haematin; peptide vs native-Hb `kcat`; PaxDB abundances).
+
+## How to reason here
+
+- Treat the ODE ladder as a **mechanistic** account of Hb → haem → Hz, not a curve-fit. Prefer the next biological hypothesis over a dimensionless fudge (see scientific-accountability).
+- Keep host↔DV **mass balance** and units (M vs fg/cell, `V_RBC` vs `V_DV`) explicit. Aqueous lumen volume is not cumulative internalized Fe (Hz is excluded from Garnie lumen).
+- Do not conflate empirical `f_exp` (Fe-delivery placeholder) with cytostome kinetics or `V_DV(t)`.
+- When experiment disagrees, say which pool is wrong (standing DV Hb, basal Hm, Hz timing, total Fe) and which biological process is the plausible missing piece.
+
+## Language
+
+Use field terms carefully: haem / heme, haemozoin, DV / food vacuole, pHrodo lumen vs total DV, CQ-sensitive NF54 vs CQ-resistant Dd2. Cite parameters to assay or paper; label provisional unknowns.

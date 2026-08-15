@@ -3,7 +3,7 @@
 **Code:** [`haem_kinetics/models/degradation.py`](../../haem_kinetics/models/degradation.py)  
 **Up:** [Model index](../models.md) · **Next:** [Model 1](model1.md)
 
-Sandbox for testing **Hb uptake** and **enzymatic release of Fe(II)**. There is no Fe(III) or haemozoin chemistry.
+Sandbox for testing **Hb uptake** and **enzymatic release of Fe(II)**. There is no Fe(III) or haemozoin chemistry. Uses the same `variable_dv_volume` bookkeeping as Models 1–3.
 
 ---
 
@@ -49,28 +49,30 @@ Auxiliary rates (`t` in minutes from 16 h):
 # Fractional exponential growth (uptake / enzyme clock)
 f_exp(t) = a · b · exp(b · t)     a = 0.1578,  b = 0.001102
 
-# Host → DV Hb uptake (M/min on V_DV)
-v_up = f_exp(t) · [Hb]_RBC · V_RBC / V_DV
+# Host → DV Hb uptake (M/min on V_DV(t))
+v_up = f_exp(t) · [Hb]_RBC · V_RBC / V_DV(t)
 
 # Effective protease concentration
-[E]_i,eff = f_exp(t) · [E]_i     i ∈ {plm_1, plm_2, hap, plm_4}
+[E]_i,eff = f_exp(t) · n_E,i / V_DV(t)     i ∈ {plm_1, plm_2, hap, plm_4}
 
 # Haem release from Hb (MM sum; 4 haem-eq per tetramer)
 v_dig = 4 · Σ_i  (60 · kcat_i) · [E]_i,eff · [Hb]_tet
                      / (Km_i + [Hb]_tet)
+
+dil(C) = − C · (dV_DV/dt) / V_DV
 ```
 
 ODEs (as implemented):
 
 ```text
 # DV haemoglobin (digestion term deliberately omitted)
-d[Hb]_DV / dt  = v_up
+d[Hb]_DV / dt  = v_up + dil([Hb]_DV)
 
 # Free Fe(II)PPIX
-d[Fe(II)] / dt = v_dig
+d[Fe(II)] / dt = v_dig + dil([Fe(II)])
 
 # Remaining host RBC Hb
-d[Hb]_RBC / dt = − v_up · V_DV / V_RBC
+d[Hb]_RBC / dt = − v_up · V_DV(t) / V_RBC
 ```
 
 ---
@@ -82,7 +84,8 @@ d[Hb]_RBC / dt = − v_up · V_DV / V_RBC
 | `a` | 0.1578 | — | Prefactor in fractional exponential growth `f_exp(t)` |
 | `b` | 0.001102 | min⁻¹ | Rate constant in fractional exponential growth `f_exp(t)` |
 | `V_RBC` | 90×10⁻¹⁵ | L | Volume of the host red blood cell |
-| `V_DV` | 1×10⁻¹⁵ | L | Fixed digestive-vacuole volume used for M ↔ fg conversion |
+| `V_DV,ref` | 1×10⁻¹⁵ | L | Reference DV volume (init API and PaxDB `n_E`) |
+| `V_DV(t)` | variable | L | Shared lumen bookkeeping (`variable_dv_volume`; same fg conversion as Models 1–3) |
 | `N_A` | 6.022×10²³ | mol⁻¹ | Avogadro's number |
 | `N_prot` | 1.9×10⁸ | — | Average number of proteins per *P. falciparum* cell |
 
@@ -107,7 +110,7 @@ Enzyme inputs for `v_dig`. `[E]` is **derived** (`ppm × 10⁻⁶ × N_prot / (N
 
 - SOD / Fe(III) cycle irrelevant (no Fe(III) states).
 - Enzyme levels scale with the same `f_exp(t)` used for uptake.
-- Fixed DV volume for M ↔ fg conversion.
+- Shared `variable_dv_volume` for M ↔ fg conversion (bookkeeping).
 
 ---
 
@@ -130,3 +133,5 @@ Degradation().run(
 ## Relation to other models
 
 Degradation is an uptake / Fe(II)-release sandbox only. For closed Fe speciation with oxidation and haemozoin, continue to [Model 1](model1.md).
+
+Speciation fit metrics (Hb / Hm / Hz vs Garnie Dd2) are **not** reported here: this model has no Fe(III)/Hz path and is mass-imbalanced by design. See [models.md](../models.md#fit-vs-garnie-dd2-tracking).

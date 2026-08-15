@@ -15,6 +15,9 @@ Detailed pages (with process schematics):
 | Model 1 | [docs/models/model1.md](docs/models/model1.md) |
 | Model 2 | [docs/models/model2.md](docs/models/model2.md) |
 | Model 3 | [docs/models/model3.md](docs/models/model3.md) |
+| Model 4a / 4b | [docs/models/model4.md](docs/models/model4.md) |
+| Model 5 | [docs/models/model5.md](docs/models/model5.md) |
+| Model 6 | [docs/models/model6.md](docs/models/model6.md) |
 | Legacy 2–6 | [docs/models/legacy/](docs/models/legacy/README.md) |
 
 ## Quick start

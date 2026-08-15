@@ -81,6 +81,19 @@ def garnie_dd2_vol_dv_L(
     return vol_L, dvol_L_per_min
 
 
+def variable_dv_volume_L(
+    t_min: float,
+    parasite_t0_h: float = 16.0,
+) -> Tuple[float, float]:
+    """
+    Variable DV lumen volume (L) and dV/dt (L/min) at simulation time t_min.
+
+    Generic bookkeeping API. The current numerical schedule is Garnie Dd2
+    aqueous lumen (`garnie_dd2_vol_dv_L`).
+    """
+    return garnie_dd2_vol_dv_L(t_min, parasite_t0_h)
+
+
 def fraction_exp_growth(t: float, a: float = 0.1578, b: float = 0.001102) -> float:
     """Fractional exponential growth for Hb uptake (t in minutes from 16 h).
 
@@ -97,13 +110,70 @@ def enzyme_logistic_scale(
     steepness: float = 0.35,
 ) -> float:
     """
-    Mature protease capacity vs parasite age (0→1), independent of uptake f_exp.
+    Unused by the active ladder (legacy Models 5–6 only).
 
-    Logistic in hours post-invasion; shaped after DV/protease build-up during
-    the trophozoite window (Garnie-like), not matched to the uptake prefactor.
+    Not from a paper: a logistic from ~0 at 16 h contradicts Garnie Fig. 3
+    (PM I/IV already present at 20 h). Active Model 3 uses
+    garnie_pm_amount_scale instead.
     """
     age_h = parasite_t0_h + t_min / 60.0
     return 1.0 / (1.0 + math.exp(-steepness * (age_h - t_mid_h)))
+
+
+# Garnie Fig. 3 (NF54), Figshare “PM I and PM IV raw data_enzyme analysis.xlsx”
+# https://doi.org/10.6084/m9.figshare.28801805
+# Sheet column “Average of Percent values”: mean blot % of total PM signal
+# (amount per 50k parasites), n = 4 except 24 h where the spreadsheet dropped
+# an outlier (PM I: NF2; PM IV: NF1). Amount, not vs BiP. Immunoblot ≠ the
+# Dd2 Hb/Hm/Hz scoring target.
+_GARNIE_PM_AGES_H = (20.0, 24.0, 28.0, 32.0, 36.0, 40.0, 44.0)
+_GARNIE_PM_I_PERCENT = (
+    9.7395, 7.796667, 11.15625, 16.206, 17.22275, 19.62675, 19.348,
+)
+_GARNIE_PM_IV_PERCENT = (
+    7.27675, 5.286667, 10.050333, 14.97225, 19.48, 22.1955, 22.77275,
+)
+
+
+def _garnie_mean_pm_percent() -> Tuple[float, ...]:
+    return tuple(
+        0.5 * (a + b)
+        for a, b in zip(_GARNIE_PM_I_PERCENT, _GARNIE_PM_IV_PERCENT)
+    )
+
+
+def _garnie_pm_scale_knots() -> Tuple[float, ...]:
+    """s_PM at blot ages; plateau (mean of 40 h and 44 h) = 1."""
+    mean_pct = _garnie_mean_pm_percent()
+    plateau = 0.5 * (mean_pct[-2] + mean_pct[-1])
+    return tuple(m / plateau for m in mean_pct)
+
+
+def _interp_hold(x: float, xs: Tuple[float, ...], ys: Tuple[float, ...]) -> float:
+    """Piecewise-linear interpolation; hold at first/last knot outside the range."""
+    if x <= xs[0]:
+        return ys[0]
+    if x >= xs[-1]:
+        return ys[-1]
+    for i in range(len(xs) - 1):
+        if x <= xs[i + 1]:
+            w = (x - xs[i]) / (xs[i + 1] - xs[i])
+            return ys[i] + w * (ys[i + 1] - ys[i])
+    return ys[-1]
+
+
+def garnie_pm_amount_scale(
+    t_min: float,
+    parasite_t0_h: float = 16.0,
+) -> float:
+    """
+    Relative plasmepsin amount s_PM(age) from Garnie Fig. 3 (mean of PM I and IV).
+
+    Plateau (40–44 h) = 1. Ages 16–20 h held at the first measured (20 h) point.
+    Applied to all haem-releasing proteases (only I and IV were blotted).
+    """
+    age_h = parasite_t0_h + t_min / 60.0
+    return _interp_hold(age_h, _GARNIE_PM_AGES_H, _garnie_pm_scale_knots())
 
 
 def lipid_aqueous_fraction(vol_fract_lip: float, k_partition: float) -> float:
