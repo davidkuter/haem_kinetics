@@ -1,11 +1,16 @@
 """Run active haem kinetics models and save comparison plots."""
 from haem_kinetics.models.model1 import Model1
-from haem_kinetics.models.model2 import Model2
+from haem_kinetics.models.model2 import Model2a
+from haem_kinetics.models.model2b import Model2b
 from haem_kinetics.models.model3 import Model3
 from haem_kinetics.models.model4a import Model4a
 from haem_kinetics.models.model4b import Model4b
 from haem_kinetics.models.model5 import Model5
 from haem_kinetics.models.model6 import Model6
+from haem_kinetics.models.model7 import Model7
+from haem_kinetics.models.model8 import Model8
+from haem_kinetics.models.model9 import Model9
+from haem_kinetics.models.model10 import Model10
 from haem_kinetics.models.degradation import Degradation
 
 
@@ -17,12 +22,17 @@ t_span = [t_start, t_end]
 
 runs = [
     ('examples/model1.png', Model1, [0.018, 0.0, 0.0, 0.36], {}),
-    ('examples/model2.png', Model2, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model2a.png', Model2a, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model2b.png', Model2b, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model3.png', Model3, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model4a.png', Model4a, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model4b.png', Model4b, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model5.png', Model5, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model6.png', Model6, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model7.png', Model7, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model8.png', Model8, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model9.png', Model9, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model10.png', Model10, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/degradation.png', Degradation, [0.018, 0.0], {}),
 ]
 

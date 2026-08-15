@@ -1,29 +1,29 @@
-# Model 6
+# Model 7
 
-**Code:** [`haem_kinetics/models/model6.py`](../../haem_kinetics/models/model6.py)  
-**Up:** [Model index](../models.md) · **Prev:** [Model 5](model5.md)
+**Code:** [`haem_kinetics/models/model7.py`](../../haem_kinetics/models/model7.py)  
+**Up:** [Model index](../models.md) · **Prev:** [Model 6](model6.md) · **Next:** [Model 8](model8.md)
 
-Model 5 chemistry (HTV cargo, 4b lumen proteases, `s_PM`, `f_exp`) plus **aqueous ⇄ lipid Fe(III) partition**. Haemozoin forms from the **lipid** pool at literature `k_hz`. Assay free haem is aq + lip.
+Model 6 chemistry (HTV cargo, `k_release(t) ∝ s_PM`, 4b lumen proteases, `f_exp`) plus **aqueous ⇄ lipid Fe(III) partition**. Haemozoin forms from the **lipid** pool at literature `k_hz`. Assay free haem is aq + lip.
 
 ---
 
-## What changed vs Model 5 (and why)
+## What changed vs Model 6 (and why)
 
-**Problem in Models 1–5:** a single Fe(III) pool crystallizes at `k_hz = 0.12 min⁻¹`. That number is from **lipid-mediated** β-haematin assays (Egan et al. *Malar. J.* 2012). Applying it to bulk aqueous Fe(III) drains assay Hm (~0 vs Garnie basal free haem). Multiplying `k_hz` by an aqueous fraction `φ ≈ 0.13` (legacy Model 2) treats lipid as an **inhibitor** of crystallization — the wrong chemical sign.
+**Problem in Models 1–6:** a single Fe(III) pool crystallizes at `k_hz = 0.12 min⁻¹`. That number is from **lipid-mediated** β-haematin assays (Egan et al. *Malar. J.* 2012). Applying it to bulk aqueous Fe(III) drains assay Hm (~0 vs Garnie basal free haem). Multiplying `k_hz` by an aqueous fraction `φ ≈ 0.13` (legacy Model 2) treats lipid as an **inhibitor** of crystallization — the wrong chemical sign.
 
 **Change (one mechanism):** Fe(III)PPIX partitions between aqueous lumen and lipid nanospheres. Crystallization acts on the lipid-associated pool at the **full** assay `k_hz` (no `φ`).
 
-| Item | Model 5 | Model 6 |
+| Item | Model 6 | Model 7 |
 |------|---------|---------|
 | Fe(III) | one pool `conc_fe3pp` | **`conc_fe3pp_aq` ⇄ `conc_fe3pp_lip`** |
 | `v_hz` | `k_hz · [Fe3]` | `k_hz · [Fe3]_lip` |
 | Assay Hm | `conc_fe3pp` | **aq + lip** |
-| HTV / proteases | Model 5 | Unchanged |
+| HTV / proteases | Model 6 | Unchanged |
 
 **Not this step:**
 
 - `φ` as a rate multiplier on `k_hz`.
-- A crystal-competent (`xtal`) sub-pool of lipid Fe (legacy Model 6). If Hm still drains, that is a later numbered model.
+- A crystal-competent (`xtal`) sub-pool of lipid Fe — [Model 8](model8.md).
 - Fitting `k_hz` or `K_partition` to Garnie basal Hm.
 
 ---
@@ -46,7 +46,7 @@ Assay **Hb** (plotted): `conc_hb_htv + conc_hb_dv`. Assay **Hm**: `conc_fe3pp_aq
 
 ## Governing equations
 
-HTV, lumen digestion, oxidation: [model5.md](model5.md), [model4.md](model4.md). Model 6 addition:
+HTV, lumen digestion, oxidation: [model6.md](model6.md), [model5.md](model5.md), [model4.md](model4.md). Model 7 addition:
 
 ```text
 φ = (1 − f_lip) / (1 + f_lip + f_lip · K_partition)
@@ -66,7 +66,7 @@ Init `[Hb, Fe2, Fe3, Hz]` seeds HTV and **aqueous** Fe3 (lip = 0).
 
 ---
 
-## Parameters (Model 6–specific)
+## Parameters (Model 7–specific)
 
 | Constant | Value | Units | Source |
 |----------|------:|-------|--------|
@@ -82,7 +82,7 @@ Init `[Hb, Fe2, Fe3, Hz]` seeds HTV and **aqueous** Fe3 (lip = 0).
 
 | Symbol | Meaning |
 |--------|---------|
-| `conc_hb_htv`, `conc_hb_dv` | Same as Model 5 |
+| `conc_hb_htv`, `conc_hb_dv` | Same as Model 6 |
 | `conc_fe2pp` | Fe(II)PPIX |
 | `conc_fe3pp_aq` | Aqueous Fe(III)PPIX |
 | `conc_fe3pp_lip` | Lipid-associated non-Hz Fe(III) |
@@ -102,8 +102,8 @@ Init `[Hb, Fe2, Fe3, Hz]` seeds HTV and **aqueous** Fe3 (lip = 0).
 
 ## Known behaviour / issues
 
-- With full `k_hz` on the lipid pool, lipid Fe³⁺ still crystallizes quickly. Assay Hm (`aq+lip`) remains far below Garnie basal (χ²_red 225 vs 232 on Model 5). That is an accountable result of this chemistry, not a reason to add `φ` or `xtal` in this step.
-- Hb / HTV topology is unchanged from Model 5.
+- With full `k_hz` on the lipid pool, lipid Fe³⁺ still crystallizes quickly. Assay Hm (`aq+lip`) remains far below Garnie basal (χ²_red 207 vs 217 on Model 6). That is an accountable result of this chemistry, not a reason to add `φ` in this step. [Model 8](model8.md) is the next accountable step (interfacial Fe(III), not a fitted `k_hz`).
+- Hb / HTV lysis clock is Model 6 (`k_release ∝ s_PM`).
 
 ---
 
@@ -113,26 +113,26 @@ Protocol and definitions: [models.md](../models.md#fit-vs-garnie-dd2-tracking). 
 
 | Series | RMSE (fg/cell) | MAE | mean signed error | χ²_red | n |
 |--------|---------------:|----:|-----:|-------:|--:|
-| Hb | 1.03 | 1.00 | −1.00 | 10.43 | 9 |
-| Hm | 3.34 | 3.07 | −3.07 | 225 | 9 |
-| Hz | 12.30 | 8.06 | −7.03 | 0.62 | 9 |
-| DV Fe | 15.89 | 11.11 | −11.11 | 1.17 | 9 |
+| Hb | 0.33 | 0.25 | +0.14 | 0.74 | 9 |
+| Hm | 3.13 | 2.88 | −2.88 | 207 | 9 |
+| Hz | 3.54 | 2.53 | +2.53 | 0.22 | 9 |
+| DV Fe | 2.56 | 1.98 | −0.21 | 0.09 | 9 |
 
-**Vs Model 5:** Hb and DV Fe are unchanged (same HTV cargo and internalized inventory). Hm moves only a little (RMSE 3.38 → 3.34, χ²_red 232 → 225): lipid Fe³⁺ still crystallizes at full literature `k_hz`, so assay Hm (`aq+lip`) remains far below Garnie basal. Hz is slightly more delayed (RMSE 12.27 → 12.30). Success for this step is the Egan sign of lipid (promotes Hz; do not multiply `k_hz` by `φ`), not a still-low Hm score used to justify `xtal` or a fitted `k_hz` here.
+**Vs Model 6:** Hb and DV Fe are unchanged (same HTV cargo and internalized inventory). Hm moves only a little (RMSE 3.20 → 3.13, χ²_red 217 → 207): lipid Fe³⁺ still crystallizes at full literature `k_hz`, so assay Hm (`aq+lip`) remains far below Garnie basal. Hz is slightly less high (RMSE 3.59 → 3.54). Success for this step is the Egan sign of lipid (promotes Hz; do not multiply `k_hz` by `φ`), not a still-low Hm score used to justify a fitted `k_hz` here. Interfacial Fe is [Model 8](model8.md).
 
 ---
 
 ## How to run
 
 ```python
-from haem_kinetics.models.model6 import Model6
+from haem_kinetics.models.model7 import Model7
 
-model = Model6()
+model = Model7()
 model.run(
     t=[0, 1700],
     init=[0.018, 0.0, 0.0, 0.36],
     t_eval=range(0, 1700, 20),
-    plot='examples/model6.png',
+    plot='examples/model7.png',
 )
 ```
 

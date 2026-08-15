@@ -151,9 +151,9 @@ Protocol and definitions: [models.md](../models.md#fit-vs-garnie-dd2-tracking).
 | Series | RMSE (fg/cell) | MAE | mean signed error | χ²_red | n |
 |--------|---------------:|----:|-----:|-------:|--:|
 | Hb | 1.91 | 1.87 | −1.87 | 37.13 | 9 |
-| Hm | 3.38 | 3.11 | −3.11 | 231 | 9 |
-| Hz | 11.63 | 7.66 | −6.12 | 0.57 | 9 |
-| DV Fe | 15.89 | 11.11 | −11.11 | 1.17 | 9 |
+| Hm | 3.21 | 2.95 | −2.95 | 215 | 9 |
+| Hz | 5.32 | 4.62 | +4.62 | 0.48 | 9 |
+| DV Fe | 2.56 | 1.98 | −0.21 | 0.09 | 9 |
 
 **Model 4b** — identical fg scores.
 

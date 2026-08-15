@@ -1,15 +1,15 @@
 # Model 3
 
 **Code:** [`haem_kinetics/models/model3.py`](../../haem_kinetics/models/model3.py)  
-**Up:** [Model index](../models.md) · **Prev:** [Model 2](model2.md) · **Next:** [Model 4](model4.md)
+**Up:** [Model index](../models.md) · **Prev:** [Model 2a / 2b](model2.md) · **Next:** [Model 4](model4.md)
 
-Model 2 chemistry (`f_exp` uptake, shared `variable_dv_volume` bookkeeping) plus a **plasmepsin amount schedule** `s_PM(t)` reconstructed from Garnie Fig. 3 immunoblots.
+Model 2b chemistry (two-phase `f_exp` uptake, shared `variable_dv_volume` bookkeeping) plus a **plasmepsin amount schedule** `s_PM(t)` reconstructed from Garnie Fig. 3 immunoblots.
 
 ---
 
-## What changed vs Model 2 (and why)
+## What changed vs Model 2b (and why)
 
-**Problem in Model 2:** PaxDB sets a constant enzyme **amount** from `t` = 0, so DV Hb collapses as soon as it arrives (~0 vs assay ~1–2 fg). Standing DV Hb is the first broken step after uptake. Hz / internalized Fe are already the least-wrong series.
+**Problem in Model 2b:** PaxDB sets a constant enzyme **amount** from `t` = 0, so DV Hb collapses as soon as it arrives (~0 vs assay ~1–2 fg). Standing DV Hb is the first broken step after uptake. Hz / internalized Fe are already the least-wrong series.
 
 **Change (one mechanism):** scale that PaxDB amount by the published PM I/IV time course.
 
@@ -19,7 +19,7 @@ s_PM(age)  = relative PM amount from Garnie Fig. 3; plateau (40–44 h) = 1
 [E]_i,eff  = s_PM(age) · n_E,i / V_DV(t)
 ```
 
-| Item | Model 2 | Model 3 |
+| Item | Model 2b | Model 3 |
 |------|---------|---------|
 | Uptake | empirical `f_exp` | **Unchanged** |
 | `V_DV(t)` | `variable_dv_volume` | **Unchanged** (not this step) |
@@ -50,7 +50,7 @@ flowchart LR
 
 ## State variables
 
-Same as Model 2: `[Hb_DV, Fe2, Fe3, Hz]` (+ host), integrated in **M at the current `V_DV(t)`**. Init numbers are 1 fL-reference molarities (fg seed unchanged).
+Same as Model 2b: `[Hb_DV, Fe2, Fe3, Hz]` (+ host), integrated in **M at the current `V_DV(t)`**. Init numbers are 1 fL-reference molarities (fg seed unchanged).
 
 ---
 
@@ -69,7 +69,7 @@ i ∈ {plm_1, plm_2, hap, plm_4, fp_2, fp_3}
 v_dig = 4 · Σ_i  (60 · kcat_i) · [E]_i,eff · [Hb]_tet / (Km_i + [Hb]_tet)
 ```
 
-ODEs are otherwise Model 2 (including dilution).
+ODEs are otherwise Model 2b (including dilution).
 
 ---
 
@@ -105,7 +105,7 @@ Fig. 3 text (for orientation, not a substitute for the table): 20–28 h lag; 28
 
 ## Known behaviour / issues
 
-- **Lag `s_PM(20 h) ≈ 0.41` of plateau.** That is already a large fraction of full PaxDB amount. DV Hb still collapses (~0 vs assay ~1–2 fg); fg scores match Model 2. [Model 4](model4.md) is the next accountable step (peptide vs native-Hb substrate), not a steeper invented delay.
+- **Lag `s_PM(20 h) ≈ 0.41` of plateau.** That is already a large fraction of full PaxDB amount. DV Hb still collapses (~0 vs assay ~1–2 fg); fg scores match Model 2b. [Model 4](model4.md) is the next accountable step (peptide vs native-Hb substrate), not a steeper invented delay.
 - Hm remains drained by `k_hz · [Fe3]` — that is a later lipid/xtal step, not a reason to add a haem-parking term here.
 - Model is defined only while `V_DV > 0` (collapse reaches 0 at 46 h).
 
@@ -118,11 +118,11 @@ Protocol and definitions: [models.md](../models.md#fit-vs-garnie-dd2-tracking).
 | Series | RMSE (fg/cell) | MAE | mean signed error | χ²_red | n |
 |--------|---------------:|----:|-----:|-------:|--:|
 | Hb | 1.91 | 1.87 | −1.87 | 37.13 | 9 |
-| Hm | 3.38 | 3.11 | −3.11 | 231 | 9 |
-| Hz | 11.63 | 7.66 | −6.12 | 0.57 | 9 |
-| DV Fe | 15.89 | 11.11 | −11.11 | 1.17 | 9 |
+| Hm | 3.21 | 2.95 | −2.95 | 215 | 9 |
+| Hz | 5.32 | 4.62 | +4.62 | 0.48 | 9 |
+| DV Fe | 2.56 | 1.98 | −0.21 | 0.09 | 9 |
 
-**Vs Model 2:** identical fg scores. The blot-derived clock is in the ODEs; it does not leave a standing DV Hb pool because early `s_PM` is already ~40% of the PaxDB plateau. Success for this step is the accountable enzyme clock, not a still-bad Hm score used to justify a haem-parking term.
+**Vs Model 2b:** identical fg scores. The blot-derived clock is in the ODEs; it does not leave a standing DV Hb pool because early `s_PM` is already ~40% of the PaxDB plateau. Success for this step is the accountable enzyme clock, not a still-bad Hm score used to justify a haem-parking term.
 
 ---
 

@@ -64,16 +64,25 @@ class Constants:
         self.k_fe3pp_red = 180e-9
         # - Rate of haemozoin formation (lipid-mediated β-haematin)
         #   https://link.springer.com/article/10.1186/1475-2875-11-337
-        #   Active Model 6: apply to lipid-associated Fe(III), not bulk aqueous haem.
-        #   Do not multiply by φ. Crystal-competent (xtal) is a later step if needed.
+        #   Active Model 7: apply to lipid-associated Fe(III), not bulk aqueous haem.
+        #   Active Model 8: apply to the interfacial (crystal-competent) pool.
+        #   Do not multiply by φ.
         self.k_hz = 0.12  # min-1
         # - Aqueous <-> lipid Fe(III) exchange; large => near-equilibrium partition
         self.k_lipid_exchange = 50.0  # min-1
-        # - Lipid-associated <-> crystal-competent Fe(III) exchange
-        #   Not used in active Model 6 (aq ⇄ lip only). Kept for a later numbered
-        #   model / legacy Model 6 if assay Hm still drains.
+        # - Lipid-associated <-> interfacial Fe(III) exchange (Model 8).
+        #   Same class as k_lipid_exchange: large vs k_hz so the pool sits near
+        #   K_xtal. No measured rate. Standing Hm is set by K_xtal, not this k.
         self.k_xtal_exchange = 5.0  # min-1
-        self.K_xtal = 0.08  # [Fe3]_xtal / [Fe3]_lip at equilibrium
+        # - Interfacial / bulk-NLB volume ratio K_xtal = 3δ/R (thin spherical shell).
+        #   R = 150 nm: Jackson 2004 / Pisciotta 2007 NLBs "a few hundred nm"
+        #   (take 300 nm diameter). δ = 4 nm: Kapishnikov 2012 bilayer thickness
+        #   as the interfacial-film scale, not a Garnie-fitted scalar.
+        #   Legacy ladder stored 0.08 with no citation; this pair recovers it.
+        #   A 2 nm monolayer on the same R would give 0.04 (more parked Hm).
+        self.nlb_radius_m = 150e-9  # m
+        self.interface_shell_m = 4e-9  # m
+        self.K_xtal = 3.0 * self.interface_shell_m / self.nlb_radius_m
         # - Enzyme rate constants (peptide-substrate MM; see docs/enzyme_kinetics.md)
         #   Plasmepsins / HAP: Banerjee et al. PNAS 2002 Table 1 (PM I/II from Luker 1996)
         #     https://doi.org/10.1073/pnas.022630099

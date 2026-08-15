@@ -1,42 +1,28 @@
-# Model 2
+# Model 2a / 2b
 
-**Code:** [`haem_kinetics/models/model2.py`](../../haem_kinetics/models/model2.py)  
+**Code:** [`haem_kinetics/models/model2.py`](../../haem_kinetics/models/model2.py), [`model2b.py`](../../haem_kinetics/models/model2b.py)  
 **Up:** [Model index](../models.md) · **Prev:** [Model 1](model1.md) · **Next:** [Model 3](model3.md)
 
-Model 1 plus **accelerating host→DV uptake** via fractional exponential growth of remaining host Hb. Protease **amount** stays at PaxDB `n_E` (`[E] = n_E / V_DV(t)` is shared bookkeeping). No lipid chemistry.
+Model 1 plus **accelerating host→DV uptake**. Both encodings are first-order in leftover host Hb. Protease **amount** stays at PaxDB `n_E`. No lipid chemistry. Simulation time `t` is minutes from 16 h, as in every other model.
+
+**Model 2a** is the one-phase comparison. **Model 2b** is the ladder default (Models 3–10 inherit it): the same law with a faster late phase after Garnie Fig. 5B’s 29 h break.
 
 ---
 
 ## What changed vs Model 1 (and why)
 
-**Problem in Model 1:** linear `k_hb_trans · [Hb]_RBC` delivers too little Fe over the trophozoite window (~84 fg still in host; Hz stuck near the ~20 fg seed). DV intermediates stay near zero because whatever arrives is digested immediately — the dominant Fe shortfall is **uptake**, not crystallization.
+**Problem in Model 1:** linear `k_hb_trans · [Hb]_RBC` delivers too little Fe (~84 fg still in host; Hz stuck near the ~20 fg seed).
 
-**Change (one mechanism):** replace linear uptake with
+**Change:** replace linear uptake with `f_exp(t) · [Hb]_RBC`. Mole rate = `f(t) · n_host`. `a` and `b` are empirical (Dd2 defaults).
 
-```text
-f_exp(t) = a · b · exp(b · t)     a = 0.1578,  b = 0.001102
-v_up = f_exp(t) · [Hb]_RBC · V_RBC / V_DV(t)
-```
+| Item | Model 1 | Model 2a | Model 2b |
+|------|---------|----------|----------|
+| Uptake | `k_hb_trans · [Hb]_RBC` | one `f_exp(t)` × remaining host | two-phase `f_exp` × remaining host |
+| Break | — | — | Garnie Fig. 5B **29 h** (`t` = 780 min), not fitted; `f_exp` **continuous** at the join |
+| Enzyme amount | PaxDB `n_E` | Unchanged | Unchanged |
+| Fe³⁺ / Hz | `k_hz · [Fe3]` | Unchanged | Unchanged |
 
-| Item | Model 1 | Model 2 |
-|------|---------|---------|
-| Uptake | `k_hb_trans · [Hb]_RBC` | `f_exp(t)` fractional remaining host |
-| Enzyme amount | PaxDB `n_E` | **Unchanged** |
-| Fe³⁺ / Hz | `k_hz · [Fe3]` | Unchanged |
-
-### Provenance of `a`, `b` (empirical — not a cytostome assay)
-
-`f_exp` was obtained by taking **cumulative Fe already inside the DV / parasite** (model or assay pools such as `Hb_DV + Fe3 + Hz`, which on Dd2 is dominated by Hz) over the trophozoite window and fitting an exponential; `a` and `b` are those fit coefficients. That schedule is a convenient way to **deliver enough Fe** into the DV so downstream speciation can be studied.
-
-It is **not**:
-
-- a measured cytostomal / HCCU rate law;
-- digestive-vacuole volume growth `V_DV(t)` (Garnie Dd2 lumen peaks ~3.7 fL with Gompertz growth then collapse; that volume is **shared `variable_dv_volume` bookkeeping** from Model 1, not this uptake law);
-- equivalent to Elliott’s ring-stage “Big Gulp” (a single early FV-biogenesis event). A lasting `Hb_DV` spike is not expected in the trophozoite fractionation window: standing Hb stays ~1–2 fg while cumulative Fe appears as Hz.
-
-**Model 3** multiplies PaxDB amount by Garnie Fig. 3 `s_PM(t)`. It does not replace `f_exp` by assay `dF/dt`.
-
-**Deferred on purpose:** co-scaling enzymes with `f_exp` (old legacy Model 3) mixes two mechanisms; full PaxDB amount already over-digests DV Hb in Model 1.
+**Not this step:** cytostome kinetics, pHrodo Fig. 2C, `V_DV(t)` (shared bookkeeping), Garnie Fig. 5B as a fg/h `v_up` (that would drop the `× n_host` factor).
 
 ---
 
@@ -52,92 +38,51 @@ flowchart LR
 
 ---
 
-## State variables
-
-| Symbol | Meaning |
-|--------|---------|
-| `conc_hb_dv` | DV haemoglobin (haem-eq, M) |
-| `conc_fe2pp` | Fe(II)PPIX |
-| `conc_fe3pp` | Fe(III)PPIX (single pool) |
-| `conc_hz` | Haemozoin |
-| `conc_hb_rbc` | Remaining host Hb (appended by `run()`) |
-
-Init API: `[Hb_DV, Fe2, Fe3, Hz]`.
-
----
-
 ## Governing equations
 
+Shared chemistry (Model 1 proteases, oxidation, `k_hz`). Uptake only:
+
 ```text
-# Fractional exponential growth (uptake only; t in minutes from 16 h)
+# Model 2a — one phase (t in minutes from 16 h)
 f_exp(t) = a · b · exp(b · t)     a = 0.1578,  b = 0.001102
 
-# Host → DV Hb uptake (M/min on V_DV(t); mole rate independent of V)
+# Model 2b — two phases; break from Garnie Fig. 5B (29 h), not fitted.
+# f_exp is continuous at t = 780 min (a_l from that join, not a free parameter).
+f_exp(t) = a_e · b_e · exp(b_e · t)     t < 780 min
+         = a_l · b_l · exp(b_l · t)     t ≥ 780 min
+a_e = 0.3224,   b_e = 0.0007607 min⁻¹
+b_l = 0.003342 min⁻¹
+a_l = a_e · (b_e / b_l) · exp((b_e − b_l) · 780)  = 0.009799
+
 v_up = f_exp(t) · [Hb]_RBC · V_RBC / V_DV(t)
-
-# Effective protease concentration (PaxDB amount; molarity follows V(t))
-[E]_i,eff = n_E,i / V_DV(t)
-i ∈ {plm_1, plm_2, hap, plm_4, fp_2, fp_3}
-
-# Haem release from Hb (MM sum; 4 haem-eq per tetramer)
-v_dig = 4 · Σ_i  (60 · kcat_i) · [E]_i,eff · [Hb]_tet
-                     / (Km_i + [Hb]_tet)
-
-# Fe(II) → Fe(III) oxidation
-v_ox  = k_fe2_ox · [Fe(II)] · [O2]
-
-# Fe(III) → Fe(II) reduction (off: [O2−] = 0)
-v_red = k_fe3_red · [Fe(III)] · [O2−]
-
-# Haemozoin formation
-v_hz  = k_hz · [Fe(III)]
-
-dil(C) = − C · (dV_DV/dt) / V_DV
 ```
 
-ODEs:
+2b’s `a_e`, `b_e`, `b_l` were least-squares fit to Dd2 DV Fe (nine ages), with the break held at 29 h and `a_l` fixed by continuity of `f_exp` at the join. Same clock `t` as Model 2a. Still × leftover host; host = 0 still stops uptake.
 
-```text
-d[Hb]_DV / dt   = v_up − v_dig + dil([Hb]_DV)
-d[Fe(II)] / dt  = v_dig + v_red − v_ox + dil([Fe(II)])
-d[Fe(III)] / dt = v_ox − v_red − v_hz + dil([Fe(III)])
-d[Hz] / dt      = v_hz + dil([Hz])
-d[Hb]_RBC / dt  = − v_up · V_DV(t) / V_RBC
-```
+ODEs otherwise identical to Model 1 / Model 2a (`v_dig`, `v_ox`, `v_hz`, dilution).
 
 ---
 
-## Parameters (Model 2–specific)
+## Parameters (uptake)
 
-| Constant | Value | Units | Description |
-|----------|------:|-------|-------------|
-| `a` | 0.1578 | — | Prefactor in `f_exp` |
-| `b` | 0.001102 | min⁻¹ | Exponential rate in `f_exp` |
-| `k_hz` | 0.12 | min⁻¹ | First-order Hz from Fe(III) (same as Model 1) |
+| Constant | Model 2a | Model 2b | Units | Description |
+|----------|---------:|---------:|-------|-------------|
+| `a` / `a_e` | 0.1578 | 0.3224 | — | Early (or only) prefactor |
+| `b` / `b_e` | 0.001102 | 0.0007607 | min⁻¹ | Early (or only) exponential rate |
+| `a_l` | — | 0.009799 | — | Late prefactor (from continuity at 29 h) |
+| `b_l` | — | 0.003342 | min⁻¹ | Late exponential rate |
+| `t_break` | — | 780 | min | Fig. 5B 29 h − 16 h |
+| `k_hz` | 0.12 | 0.12 | min⁻¹ | Unchanged |
 
-Shared volumes, PaxDB ppm, and peptide `kcat`/`Km`: [models.md](../models.md) and [enzyme_kinetics.md](../enzyme_kinetics.md).
-
----
-
-## Assumptions
-
-- Accelerating fractional uptake of remaining host Hb; shared `variable_dv_volume` (bookkeeping, not this model’s change).
-- Haem-releasing proteases at full PaxDB **amount** from `t` = 0 (same as Model 1).
-- Single Fe(III) pool crystallizing at literature `k_hz`.
-
----
-
-## Known behaviour / issues
-
-- Faster uptake should move more Fe into Hz / DV pools vs Model 1; DV Hb may still collapse if protease capacity ≫ delivery (Model 3 tests a blot-derived amount clock).
-- No basal free-haem mechanism yet (φ / lipid / xtal deferred).
-- `a`, `b` come from an empirical exponential fit to cumulative DV Fe, not from a primary uptake assay — see provenance above.
+Shared volumes, PaxDB ppm, peptide `kcat`/`Km`: [models.md](../models.md).
 
 ---
 
 ## Fit vs Garnie Dd2
 
-Protocol and definitions: [models.md](../models.md#fit-vs-garnie-dd2-tracking).
+Protocol: [models.md](../models.md#fit-vs-garnie-dd2-tracking). Both scored the same way (ODE vs Dd2 ages 20–44 h, `n` = 9).
+
+**Model 2a**
 
 | Series | RMSE (fg/cell) | MAE | mean signed error | χ²_red | n |
 |--------|---------------:|----:|-----:|-------:|--:|
@@ -146,20 +91,28 @@ Protocol and definitions: [models.md](../models.md#fit-vs-garnie-dd2-tracking).
 | Hz | 11.63 | 7.66 | −6.12 | 0.57 | 9 |
 | DV Fe | 15.89 | 11.11 | −11.11 | 1.17 | 9 |
 
-**Vs Model 1:** Hz RMSE 37.66 → 11.63; DV Fe 42.76 → 15.89. Hb unchanged (still collapsed). Hm still far outside SEM. Hz χ²_red < 1 means Hz residuals are within reported scatter — that does **not** validate `f_exp` as a uptake mechanism (it was fit to cumulative DV Fe).
+**Model 2b**
+
+| Series | RMSE (fg/cell) | MAE | mean signed error | χ²_red | n |
+|--------|---------------:|----:|-----:|-------:|--:|
+| Hb | 1.91 | 1.87 | −1.87 | 37.13 | 9 |
+| Hm | 3.21 | 2.95 | −2.95 | 215 | 9 |
+| Hz | 5.32 | 4.62 | +4.62 | 0.48 | 9 |
+| DV Fe | 2.56 | 1.98 | −0.21 | 0.09 | 9 |
+
+**Vs Model 1 / 2a:** Model 2a already improved Hz (37.66 → 11.63) and DV Fe (42.76 → 15.89, R² = 0.612) but leaves ~36 fg in the host at 44 h. Model 2b’s faster late specific rate improves inventory (DV Fe RMSE 15.89 → 2.56, R² = 0.990; host ~5 fg at 44 h) and Hz RMSE 11.63 → 5.32. Hz signed error flips positive: Model 1 chemistry dumps the extra delivered Fe into Hz. Hb still collapsed. The last assay point (44 h, ~105 fg) is still a little low (~101 fg): first-order remaining host still damps the final gulp.
+
+2b **is** inherited by Models 3–10. 2a remains available as the one-phase comparison.
 
 ---
 
 ## How to run
 
 ```python
-from haem_kinetics.models.model2 import Model2
+from haem_kinetics.models.model2 import Model2a
+from haem_kinetics.models.model2b import Model2b
 
-model = Model2()
-model.run(
-    t=[0, 1700],
-    init=[0.018, 0.0, 0.0, 0.36],
-    t_eval=range(0, 1700, 20),
-    plot='examples/model2.png',
-)
+kwargs = dict(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+Model2a().run(**kwargs, plot='examples/model2a.png')
+Model2b().run(**kwargs, plot='examples/model2b.png')
 ```

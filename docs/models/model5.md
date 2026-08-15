@@ -3,32 +3,34 @@
 **Code:** [`haem_kinetics/models/model5.py`](../../haem_kinetics/models/model5.py)  
 **Up:** [Model index](../models.md) · **Prev:** [Model 4](model4.md) · **Next:** [Model 6](model6.md)
 
-Model 4b lumen chemistry (`f_exp`, `s_PM(t)`, native-competent lumped haem release, `k_hz · [Fe3]`) plus an **inaccessible pre-lumen cargo pool**: cytostomal / HTV haemoglobin that scores as assay Hb but is not mixed with mature vacuolar proteases until first-order release. Model 4a’s globin pool is not carried: it never accumulated, so Model 5 keeps 4b’s single lumen Hb state.
+Model 4b lumen chemistry (`f_exp`, `s_PM(t)`, native-competent lumped haem release, `k_hz · [Fe3]`) plus **inaccessible inner-vesicle cargo already inside the DV**: haemoglobin that has arrived (outer HTV membrane fused) but is not mixed with soluble vacuolar proteases until the inner (PVM-derived) vesicle lyses. Model 4a’s globin pool is not carried: it never accumulated, so Model 5 keeps 4b’s single lumen Hb state.
 
 This step **supersedes** an attempted native-Hb `kcat_app` reconstruction. That conversion still lacks moles of enzyme; it was not used as a ladder parameter. Arithmetic: [enzyme_kinetics.md](../enzyme_kinetics.md#attempted-native-hb-kcat_app-reconstruction).
 
-Plots use **assay Hb** (`conc_hb_htv + conc_hb_dv`): Garnie fractionation cannot tell HTV cargo from lumen Hb.
+`f_exp` already delivers into the DV inventory ([model2.md](model2.md); [garnie_fractionation.md](../garnie_fractionation.md)). The inner-vesicle pool is a **standing-Hb** hypothesis (lumen `Vmax` ≫ uptake), not a parasite→DV lag on uptake.
+
+Plots use **assay Hb** (`conc_hb_htv + conc_hb_dv`): Garnie’s Combrinck extraction is a saponin-trophozoite pellet (not isolated DVs); sonication puts inner-vesicle Hb in the same aqueous fraction as lumen Hb.
 
 ---
 
 ## What changed vs Model 4b (and why)
 
-**Problem in Model 4:** peptide-provisional native `Vmax` is still ≫ uptake, so lumen Hb collapses (~0 vs assay ~1–2 fg). 4a vs 4b does not change that (globin does not accumulate). The missing biology is **delivery**, not another `kcat`. Trophozoite uptake is cytostome → double-membrane HTVs → outer fusion with the DV → inner (PVM-derived) vesicle lysed before Hb mixes with soluble proteases (Yayon 1984; Klemba *JCB* 2004; Nasamu 2020). Klonis et al. 2007: cytostomal vesicles are not measurably acidic (ER-like pH), not DV pH 5.4–5.5; catabolism starts after delivery. Assay Hb (protein-bound Fe) includes that cargo; HTVs are **not** Garnie pHrodo lumen.
+**Problem in Model 4:** peptide-provisional native `Vmax` is still ≫ uptake, so lumen Hb collapses (~0 vs assay ~1–2 fg). 4a vs 4b does not change that (globin does not accumulate). The missing biology is **access to proteases**, not another `kcat` and not a re-targeting of `f_exp`. Trophozoite uptake is cytostome → double-membrane HTVs → **outer fusion with the DV** → inner (PVM-derived) vesicle lysed before Hb mixes with soluble proteases (Yayon 1984; Klemba *JCB* 2004; Nasamu 2020). Klonis et al. 2007: cytostomal vesicles are not measurably acidic (ER-like pH), not DV pH 5.4–5.5; catabolism starts after inner-vesicle lysis. Assay Hb (protein-bound Fe) includes that inner-vesicle cargo; it is **not** Garnie pHrodo aqueous lumen (same exclusion as Hz crystals).
 
-**Change (one mechanism):** `f_exp` delivers into inaccessible cargo `conc_hb_htv`. First-order `k_release` feeds lumen Hb. Lumen ODEs are otherwise Model 4b (PM I/II/FP-2 native rate, nick and haem release lumped).
+**Change (one mechanism):** `f_exp` delivers into inaccessible inner-vesicle cargo `conc_hb_htv` **already in the DV**. First-order `k_release` is inner-membrane lysis into the protease-accessible lumen. Lumen ODEs are otherwise Model 4b (PM I/II/FP-2 native rate, nick and haem release lumped).
 
 | Item | Model 4b | Model 5 |
 |------|----------|---------|
-| Uptake destination | lumen Hb | **HTV cargo** |
+| Uptake destination | lumen Hb | **inner-vesicle cargo in the DV** |
 | Lumen proteases | PM I/II/FP-2 native rate only (lumped) | Unchanged |
-| Assay Hb | `conc_hb_dv` | **HTV + lumen Hb** |
-| `k_release` | — | Klemba delivery bound (provisional) |
+| Assay Hb | `conc_hb_dv` | **inner vesicle + lumen Hb** |
+| `k_release` | — | Klemba inner-vesicle lysis bound (provisional) |
 
 **Not this step:**
 
 - A delay fitted so Dd2 Hb sits at 1.9 fg.
 - A reconstructed native-Hb `kcat` (still no `[E]` in the cited assays).
-- Proteases inside HTVs (Elliott *PNAS* 2008; Klonis 2007 argues catabolism after delivery).
+- Proteases inside inner vesicles (Elliott *PNAS* 2008; Klonis 2007 argues catabolism after lysis).
 - A vesicle-number cap to flatten Hb vs ramping `f_exp`.
 - Lipid / crystal-competent Fe3 (basal Hm).
 
@@ -38,8 +40,8 @@ Plots use **assay Hb** (`conc_hb_htv + conc_hb_dv`): Garnie fractionation cannot
 
 ```mermaid
 flowchart LR
-  Host["conc_hb_rbc"] -->|"f_exp"| HTV["conc_hb_htv"]
-  HTV -->|"k_release"| Lumen["conc_hb_dv"]
+  Host["conc_hb_rbc"] -->|"f_exp"| InnerVesicle["conc_hb_htv"]
+  InnerVesicle -->|"k_release lysis"| Lumen["conc_hb_dv"]
   Lumen -->|"PM I/II/FP-2"| Fe2["conc_fe2pp"]
   Fe2 -->|"k_ox x O2"| Fe3["conc_fe3pp"]
   Fe3 -->|"k_hz"| Hz["conc_hz"]
@@ -49,7 +51,7 @@ flowchart LR
 
 ## Volume bookkeeping
 
-HTV cargo is **not** in Garnie lumen `V_DV(t)`. It is an amount (moles/cell), encoded as molarity at `V_ref = 1 fL` so `fg = C · V_ref` always. No lumen dilution on `conc_hb_htv`. Lumen species stay M at `V_DV(t)` as in Models 1–4.
+Inner-vesicle cargo is **inside the DV** but **not** in Garnie pHrodo lumen `V_DV(t)` (aqueous space; crystals likewise excluded). It is an amount (moles/cell), encoded as molarity at `V_ref = 1 fL` so `fg = C · V_ref` always. No lumen dilution on `conc_hb_htv`. Lumen species stay M at `V_DV(t)` as in Models 1–4.
 
 `AMOUNT_SPECIES` in [`base.py`](../../haem_kinetics/models/base.py) skips lumen scaling in `_prepare_y0` and converts those columns with `V_ref`.
 
@@ -61,7 +63,7 @@ Shared `V_DV(t)`, dilution (lumen only), `f_exp` uptake, and 4b `v_dig`: [models
 
 ```text
 n_HTV = C_htv · V_ref
-v_up,mol     = v_up · V_DV(t)          # same f_exp mole rate as Model 2–5
+v_up,mol     = v_up · V_DV(t)          # same f_exp mole rate as Model 2a–5
 v_release,mol = k_release · n_HTV
 
 d C_htv / dt   = v_up,mol / V_ref − k_release · C_htv
@@ -78,7 +80,7 @@ Init `[Hb, Fe2, Fe3, Hz]` seeds **HTV** (`conc_hb_dv = 0`). A lumen seed would b
 
 | Constant | Value | Units | Source |
 |----------|------:|-------|--------|
-| `k_htv_release` | ln(2)/20 ≈ 0.0347 | min⁻¹ | Klemba *JCB* 2004: cytostomal delivery `t½` **&lt; 20 min** from PM biosynthesis/maturation (`t½ ≈ 20 min`; Francis 1997; Banerjee 2003). **Provisional:** the paper’s figure is an upper bound on `t½`; inner-vesicle lysis is lumped, not separately timed. **Not** `τ ≈ 1.9 fg / 3 fg h⁻¹`. |
+| `k_htv_release` | ln(2)/20 ≈ 0.0347 | min⁻¹ | Klemba *JCB* 2004: cytostomal delivery `t½` **&lt; 20 min** from PM biosynthesis/maturation (`t½ ≈ 20 min`; Francis 1997; Banerjee 2003). **Provisional:** the paper’s figure is an upper bound on `t½`; used here as inner-vesicle lysis, not extra-DV traffic. **Not** `τ ≈ 1.9 fg / 3 fg h⁻¹`. |
 
 ---
 
@@ -86,27 +88,28 @@ Init `[Hb, Fe2, Fe3, Hz]` seeds **HTV** (`conc_hb_dv = 0`). A lumen seed would b
 
 | Symbol | Meaning |
 |--------|---------|
-| `conc_hb_htv` | Inaccessible HTV / inner-vesicle cargo (amount as M at `V_ref`) |
-| `conc_hb_dv` | Lumen Hb (native-competent lumped digestion; M at `V_DV(t)`) |
+| `conc_hb_htv` | Inaccessible inner-vesicle cargo already in the DV (amount as M at `V_ref`) |
+| `conc_hb_dv` | Protease-accessible lumen Hb (native-competent lumped digestion; M at `V_DV(t)`) |
 | `conc_fe2pp`, `conc_fe3pp`, `conc_hz` | Same as Model 4b |
-| Assay Hb | HTV + lumen Hb |
+| Assay Hb | inner vesicle + lumen Hb |
 
 ---
 
 ## Assumptions
 
-- Klonis 2007 pH: no mature protease activity on cargo until DV delivery. Elliott 2008 pre-FV digestion is a competing hypothesis for a later numbered model if this pool overshoots.
-- First-order `k_release` lumps traffic + fusion + inner-membrane lysis. If lumen `Vmax` remains huge, assay Hb ≈ the transit pool `n_HTV ≈ v_up / k_release`.
+- Klonis 2007 pH: no mature protease activity on cargo until inner-vesicle lysis in the DV. Elliott 2008 pre-FV digestion is a competing hypothesis for a later numbered model if this pool overshoots.
+- First-order `k_release` is inner-membrane lysis (Klemba’s delivery bound lumps traffic + fusion + lysis). If lumen `Vmax` remains huge, assay Hb ≈ the inner-vesicle pool `n_HTV ≈ v_up / k_release`.
+- Unfused extra-DV cytostomes would also extract into the Combrinck Hb fraction, but this state is **not** that pre-fusion lag: `f_exp` is already DV inventory.
 - Because `f_exp` ramps, standing Hb is predicted to **rise with flux**, not sit flat at 1.9 fg. That is an accountable prediction, not a reason to add a vesicle-number cap here.
 
 ---
 
 ## Known behaviour / issues
 
-- Lumen Hb collapses (~0). Assay Hb is the HTV transit pool: ~0.52 fg at 20 h → ~1.16 fg at 44 h (rises with `f_exp`, not a flat 1.9 fg). That is the accountable prediction of first-order release with the Klemba bound.
-- Hb χ²_red improves vs 4b (37 → 10) but the pool is still low vs assay (mean signed error −1.0 fg). Do not retune `k_release` to close that gap.
-- Hz is slightly delayed vs 4b (RMSE 11.63 → 12.27) because cargo spends ~20 min `t½` before lumen proteases. DV Fe is unchanged.
-- Hm remains drained by `k_hz · [Fe3]` — [Model 6](model6.md) is the next accountable step (lipid partition, not `φ`).
+- Lumen Hb collapses (~0). Assay Hb is the inner-vesicle pool, QSS with uptake (`n_HTV ≈ v_up / k_release`): ~0.67 fg at 20 h vs assay ~1.2, ~0.83 fg at 29 h vs ~1.6, ~2.3 fg near 42 h, ~1.5 fg at 44 h as leftover host damps `v_up`. Continuous 2b removed the 29 h cliff; early Hb is still low because early `v_up` is slow. Do not flatten 2b or retune `k_release` to hide that QSS identity.
+- Hb χ²_red improves vs 4b (37 → 4.4) but the pool is still low on average (mean signed error −0.45 fg). Do not retune `k_release` to close that gap.
+- Hz is slightly less high vs 4b (RMSE 5.32 → 3.97) because cargo spends ~20 min `t½` before lumen proteases. DV Fe is unchanged.
+- Hm remains drained by `k_hz · [Fe3]` — [Model 6](model6.md) clocks lysis with `s_PM`; lipid partition is [Model 7](model7.md) (not `φ`).
 - Native PM I `kcat` is still peptide-provisional; this step does not invent a native turnover.
 
 ---
@@ -117,12 +120,12 @@ Protocol and definitions: [models.md](../models.md#fit-vs-garnie-dd2-tracking).
 
 | Series | RMSE (fg/cell) | MAE | mean signed error | χ²_red | n |
 |--------|---------------:|----:|-----:|-------:|--:|
-| Hb | 1.03 | 1.00 | −1.00 | 10.43 | 9 |
-| Hm | 3.38 | 3.11 | −3.11 | 232 | 9 |
-| Hz | 12.27 | 8.04 | −6.99 | 0.62 | 9 |
-| DV Fe | 15.89 | 11.11 | −11.11 | 1.17 | 9 |
+| Hb | 0.65 | 0.54 | −0.45 | 4.40 | 9 |
+| Hm | 3.20 | 2.95 | −2.95 | 216 | 9 |
+| Hz | 3.97 | 3.20 | +3.20 | 0.31 | 9 |
+| DV Fe | 2.56 | 1.98 | −0.21 | 0.09 | 9 |
 
-**Vs Model 4b:** Hb moves (RMSE 1.91 → 1.03) because the assay now sees the inaccessible cargo. Lumen chemistry is 4b (native-competent, lumped); Hm is the same and internalized Fe is the same. Hz lags slightly (vesicle→lumen delay). Success for this step is the HTV topology with a cited `k_release`, not a still-low Hb score used to justify fitting the delay or adding a vesicle-number cap. 4a’s globin pool is omitted because it did not accumulate.
+**Vs Model 4b:** Hb moves (RMSE 1.91 → 0.65) because the assay now sees the inaccessible inner-vesicle cargo. Lumen chemistry is 4b (native-competent, lumped); Hm is the same and internalized Fe is the same. Hz is slightly less high (lysis delay). Success for this step is the inner-vesicle topology with a cited `k_release`, not a still-low Hb score used to justify fitting the delay or adding a vesicle-number cap. 4a’s globin pool is omitted because it did not accumulate.
 
 ---
 
@@ -149,5 +152,6 @@ model.run(
 - Yayon A, Timberg R, Friedman S, Ginsburg H. Effects of chloroquine on the feeding mechanism of the intraerythrocytic human malarial parasite *Plasmodium falciparum*. *J. Protozool.* (1984) 31:367–372.
 - Nasamu AS, Polino AJ, Istvan ES, Goldberg DE. Malaria parasite plasmepsins: more than just plain old degradative pepsins. *J. Biol. Chem.* (2020) 295:8425–8441. [doi:10.1074/jbc.REV120.009309](https://doi.org/10.1074/jbc.REV120.009309)
 - Francis SE, Banerjee R, Goldberg DE. Biosynthesis and maturation of plasmepsins. Cited via Klemba 2004 (`t½ ≈ 20 min`).
+- Assay vs interpretation (saponin pellet, not isolated DVs): [garnie_fractionation.md](../garnie_fractionation.md)
 - Garnie LF, Egan TJ, Wicht KJ. *Commun. Biol.* (2025) 8:1564. [doi:10.1038/s42003-025-08991-z](https://doi.org/10.1038/s42003-025-08991-z)
 - Native-Hb `kcat` gap (not this step): [enzyme_kinetics.md](../enzyme_kinetics.md)

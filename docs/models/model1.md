@@ -1,7 +1,7 @@
 # Model 1
 
 **Code:** [`haem_kinetics/models/model1.py`](../../haem_kinetics/models/model1.py)  
-**Up:** [Model index](../models.md) · **Next:** [Model 2](model2.md)
+**Up:** [Model index](../models.md) · **Next:** [Model 2a / 2b](model2.md)
 
 Baseline full speciation model: **linear** host→DV uptake, haem-releasing proteases (PMs + falcipain-2/3), fast Fe(II) oxidation, and first-order haemozoin formation. No lipid chemistry. Variable `V_DV(t)` (`variable_dv_volume`) is **shared bookkeeping** (dilution, `[E] = n_E / V(t)`, fg = `C·V`) — not this model’s mechanistic change.
 
@@ -11,7 +11,7 @@ Baseline full speciation model: **linear** host→DV uptake, haem-releasing prot
 
 Model 1 is the **minimal closed iron path** from host Hb → DV Hb → Fe(II) → Fe(III) → Hz, with host mass balance. It provides a chemically simple baseline: linear uptake, DV plasmepsins **and** falcipain-2/3 at constant PaxDB levels, a single Fe(III) pool, and crystallization at literature `k_hz`.
 
-**What that implies vs experiment (Dd2):** linear uptake leaves most Fe in the host (~84 fg); DV Hb collapses almost immediately (protease capacity ≫ uptake); Hz stays near the seed; there is **no mechanism for a standing basal free-haem (Hm) pool** of the size Garnie reports. Model 2 addresses uptake first.
+**What that implies vs experiment (Dd2):** linear uptake leaves most Fe in the host (~84 fg); DV Hb collapses almost immediately (protease capacity ≫ uptake); Hz stays near the seed; there is **no mechanism for a standing basal free-haem (Hm) pool** of the size Garnie reports. Model 2a addresses uptake first.
 
 ---
 
@@ -142,7 +142,7 @@ Enzyme inputs for `v_dig`. `[E]` is **derived** (`n_E / V_DV(t)` with `n_E` from
 
 ## Known behaviour / issues
 
-- Enzyme capacity ≫ uptake → DV Hb collapses immediately. That is a **mechanistic** mismatch (full PaxDB amount from `t` = 0), not something to patch in the RHS; Model 2 changes uptake first; Model 3 adds a blot-derived amount clock.
+- Enzyme capacity ≫ uptake → DV Hb collapses immediately. That is a **mechanistic** mismatch (full PaxDB amount from `t` = 0), not something to patch in the RHS; Model 2a changes uptake first; Model 3 adds a blot-derived amount clock.
 - Free Fe³⁺ is drained by `v_hz = k_hz · [Fe(III)]` with no non-crystallizing reservoir → simulated free haem undershoots Garnie basal Hm.
 - With linear uptake, little host Fe enters the DV over the window, so end Hz stays close to the initial Hz inventory.
 

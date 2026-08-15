@@ -103,6 +103,45 @@ def fraction_exp_growth(t: float, a: float = 0.1578, b: float = 0.001102) -> flo
     return a * b * math.exp(b * t)
 
 
+# Garnie Fig. 5B Dd2 delivery-phase break (hours post-invasion), not fitted.
+# Simulation t is minutes from 16 h, so t_break = (29 − 16) × 60 = 780 min.
+F_EXP_BREAK_AGE_H = 29.0
+F_EXP_PARASITE_T0_H = 16.0
+F_EXP_BREAK_T_MIN = (F_EXP_BREAK_AGE_H - F_EXP_PARASITE_T0_H) * 60.0
+
+
+def two_phase_a_late(
+    a_early: float,
+    b_early: float,
+    b_late: float,
+    t_break_min: float = F_EXP_BREAK_T_MIN,
+) -> float:
+    """Late prefactor so f_exp is continuous at t_break.
+
+    a_l b_l exp(b_l t*) = a_e b_e exp(b_e t*). b_late must be > 0.
+    """
+    return a_early * (b_early / b_late) * math.exp((b_early - b_late) * t_break_min)
+
+
+def fraction_exp_growth_two_phase(
+    t: float,
+    a_early: float,
+    b_early: float,
+    a_late: float,
+    b_late: float,
+    t_break_min: float = F_EXP_BREAK_T_MIN,
+) -> float:
+    """Two-phase f_exp(t); still a specific rate of remaining host Hb.
+
+    Same constitutive class as fraction_exp_growth: mole rate = f(t)·n_host.
+    The break is Garnie Fig. 5B (29 h), not a fitted knot. Callers should
+    set a_late = two_phase_a_late(...) so f_exp is continuous at t_break.
+    """
+    if t < t_break_min:
+        return fraction_exp_growth(t, a_early, b_early)
+    return fraction_exp_growth(t, a_late, b_late)
+
+
 def enzyme_logistic_scale(
     t_min: float,
     parasite_t0_h: float = 16.0,

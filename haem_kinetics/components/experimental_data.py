@@ -3,6 +3,11 @@
 Primary Dd2 / NF54 digits: Garnie LF, Egan TJ, Wicht KJ.
 *Commun. Biol.* (2025) 8:1564. https://doi.org/10.1038/s42003-025-08991-z
 Raw / related files: data/garnie/ (Figshare https://doi.org/10.6084/m9.figshare.28801805).
+
+These Hb / Hm / Hz series are Combrinck-style fractionation of saponin-isolated
+trophozoites (host cytosol washed away), not isolated DVs. Garnie still treats
+the three fractions as DV-localized. Not pHrodo Fig. 2C.
+See docs/garnie_fractionation.md.
 """
 import pandas as pd
 
@@ -53,7 +58,11 @@ class ExperimentalData:
         self._convert_to_dataframe()
 
     def no_drug_dd2(self):
-        """Dd2 no-drug fractionation (fg Fe/cell) — Garnie et al. Commun. Biol. 2025."""
+        """Dd2 no-drug fractionation (fg Fe/cell) — Garnie et al. Commun. Biol. 2025.
+
+        Saponin-trophozoite Combrinck assay, scored as DV-associated inventory.
+        See docs/garnie_fractionation.md.
+        """
         self.time = [20, 23, 26, 29, 32, 35, 38, 41, 44]  # In hours
 
         # Haemoglobin: fg/cell, SEM

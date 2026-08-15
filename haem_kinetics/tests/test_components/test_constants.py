@@ -35,6 +35,15 @@ def test_native_kcat_gluzman_ranking_not_garnie_fit():
     assert 'fp_3' not in c.k_enzymes_native
 
 
+def test_k_xtal_is_thin_shell_volume_ratio():
+    """K_xtal = 3δ/R from cited NLB radius and film thickness, not a free scalar."""
+    c = Constants()
+    assert abs(c.nlb_radius_m - 150e-9) < 1e-18
+    assert abs(c.interface_shell_m - 4e-9) < 1e-18
+    assert abs(c.K_xtal - 3.0 * c.interface_shell_m / c.nlb_radius_m) < 1e-15
+    assert abs(c.K_xtal - 0.08) < 1e-15
+
+
 def test_k_htv_release_is_klemba_half_life_bound():
     """ln(2)/20 min — Klemba delivery t½ bound, not Garnie-fitted."""
     import math

@@ -120,7 +120,7 @@ Three vacuole aspartic activities (M1, M2, M3). Native and denatured Hb are both
 
 ### Outcome
 
-**`[E]` in moles is still missing.** No `kcat_app` was invented. That attempted step is closed: Model 5 is HTV inaccessible cargo on the 4b pathway, not a reconstructed native turnover. The remaining gap for a measured native-Hb `kcat` is recorded here so a future number can be compared to the diagnostic bound above. Lipid / basal Hm is [Model 6](models/model6.md) (aq ⇄ lip at literature `k_hz`), not a substitute for that number.
+**`[E]` in moles is still missing.** No `kcat_app` was invented. That attempted step is closed: Model 5 is HTV inaccessible cargo on the 4b pathway, not a reconstructed native turnover. The remaining gap for a measured native-Hb `kcat` is recorded here so a future number can be compared to the diagnostic bound above. Lysis clock is [Model 6](models/model6.md). Lipid / basal Hm is [Model 7](models/model7.md) then [Model 8](models/model8.md) (interface at literature `k_hz`), not a substitute for that number.
 
 ## References
 

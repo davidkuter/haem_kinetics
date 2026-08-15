@@ -2,20 +2,17 @@ import pandas as pd
 
 from typing import List, Optional
 
-from haem_kinetics.models.model4b import Model4b
+from haem_kinetics.models.model7 import Model7
 from haem_kinetics.components.fit_metrics import score_fractionation
 
 
-class Model5(Model4b):
+class Model8(Model7):
     """
-    Model 4b + inaccessible inner-vesicle Hb cargo already in the DV.
+    Model 7 + interfacial (crystal-competent) Fe(III).
 
-    f_exp is host → DV inventory (fractionation total Fe), not parasite-level
-    delivery. conc_hb_htv is inner (PVM-derived) vesicles after outer fusion:
-    protein-bound Fe inside the DV, not mixed with soluble proteases until
-    first-order lysis. Assay Hb is inner vesicle + lumen because Garnie's
-    saponin-pellet extraction does not spatially resolve them
-    (docs/garnie_fractionation.md). Lumen chemistry is Model 4b.
+    Bulk NLB Fe(III) exchanges with an interfacial pool; Hz forms from the
+    interface at literature k_hz. Assay Hm is aq + lip + xtal (all still
+    non-crystalline Fe(III)PPIX). Assay Hb remains HTV + lumen.
     """
 
     AMOUNT_SPECIES = ['conc_hb_htv']
@@ -23,31 +20,37 @@ class Model5(Model4b):
         'conc_hb_htv',
         'conc_hb_dv',
         'conc_fe2pp',
-        'conc_fe3pp',
+        'conc_fe3pp_aq',
+        'conc_fe3pp_lip',
+        'conc_fe3pp_xtal',
         'conc_hz',
     ]
+    FREE_HAEM_COLS = ['conc_fe3pp_aq', 'conc_fe3pp_lip', 'conc_fe3pp_xtal']
 
-    def __init__(self, model_name: str = 'Model 5'):
+    def __init__(self, model_name: str = 'Model 8'):
         super().__init__(model_name=model_name)
         self._set_initial_conc(
-            init=[0.005, 0.0, 0.0, 0.0, 0.0, self._full_hb_rbc_m()]
+            init=[0.005, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, self._full_hb_rbc_m()]
         )
 
-    def _htv_release_lumen(self, t):
-        """Cargo appearance in the lumen (M/min on current V_DV). Inner-vesicle lysis."""
-        htv = self._nonneg(self.initial_values['conc_hb_htv'])
-        if htv <= 0.0:
+    def _lip_xtal_exchange(self):
+        lip = self._nonneg(self.initial_values['conc_fe3pp_lip'])
+        xtal = self._nonneg(self.initial_values['conc_fe3pp_xtal'])
+        return self.const.k_xtal_exchange * (lip - xtal / self.const.K_xtal)
+
+    def _hz_rate(self):
+        xtal = self._nonneg(self.initial_values['conc_fe3pp_xtal'])
+        if xtal <= 0.0:
             return 0.0
-        return self.const.k_htv_release * htv * self.const.vol_dv / self._vol_dv(t)
+        return self.const.k_hz * xtal
 
-    def _d_hb_htv(self, t):
-        htv = self._nonneg(self.initial_values['conc_hb_htv'])
-        appear = self._uptake_dv(t) * self._vol_dv(t) / self.const.vol_dv
-        return appear - self.const.k_htv_release * htv
+    def _d_fe3pp_lip(self, t):
+        lip = self._nonneg(self.initial_values['conc_fe3pp_lip'])
+        return self._exchange_rate() - self._lip_xtal_exchange() + self._dilution(t, lip)
 
-    def _d_hb_dv(self, t):
-        hb = self._nonneg(self.initial_values['conc_hb_dv'])
-        return self._htv_release_lumen(t) - self._hb_removal(t) + self._dilution(t, hb)
+    def _d_fe3pp_xtal(self, t):
+        xtal = self._nonneg(self.initial_values['conc_fe3pp_xtal'])
+        return self._lip_xtal_exchange() - self._hz_rate() + self._dilution(t, xtal)
 
     def _set_initial_conc(self, init: List[float]):
         init = self._expand_init(list(init))
@@ -55,8 +58,10 @@ class Model5(Model4b):
             init = self._pad_init_with_host(init)
         if len(init) != len(self.DV_SPECIES) + 1:
             raise ValueError(
-                'Model5 requires 5 DV values [HTV, Hb_lumen, Fe2, Fe3, Hz] '
-                'or the 4-value Model 3 init [Hb, Fe2, Fe3, Hz] (Hb seeds HTV)'
+                'Model8 requires 7 DV values '
+                '[HTV, Hb_lumen, Fe2, Fe3_aq, Fe3_lip, Fe3_xtal, Hz] '
+                'or the 4-value Model 3 init [Hb, Fe2, Fe3, Hz] '
+                '(Hb seeds HTV; Fe3 seeds aq; lip and xtal = 0)'
             )
         for key, val in zip(self.DV_SPECIES + [self.HOST_KEY], init):
             self.initial_values[key] = val
@@ -69,7 +74,9 @@ class Model5(Model4b):
             self._d_hb_htv(t),
             self._d_hb_dv(t),
             self._d_fe2pp(t),
-            self._d_fe3pp(t),
+            self._d_fe3pp_aq(t),
+            self._d_fe3pp_lip(t),
+            self._d_fe3pp_xtal(t),
             self._d_hz(t),
             self._d_host_from_dv_uptake(uptake, t),
         ]
@@ -78,11 +85,12 @@ class Model5(Model4b):
         if init is None:
             init = [0.0, 0.0, 0.0, 0.0]
         if len(init) == 4:
-            return [init[0], 0.0, init[1], init[2], init[3]]
+            return [init[0], 0.0, init[1], init[2], 0.0, 0.0, init[3]]
+        if len(init) == 5:
+            return [init[0], init[1], init[2], init[3], 0.0, 0.0, init[4]]
+        if len(init) == 6:
+            return [init[0], init[1], init[2], init[3], init[4], 0.0, init[5]]
         return list(init)
-
-    def _prepare_y0(self, init: List[float], t0: float = 0.0) -> List[float]:
-        return super()._prepare_y0(self._expand_init(init), t0=t0)
 
     def run(self, t, init: Optional[List[float]] = None, plot: Optional[str] = None, **kwargs):
         init = self._expand_init(init)
@@ -104,7 +112,8 @@ class Model5(Model4b):
                 save_file=plot,
                 title=self.model_name,
                 exp_data=self.exp_data,
-                columns=['conc_hb_assay', 'conc_hz', 'conc_fe3pp'],
+                free_haem_cols=self.FREE_HAEM_COLS,
+                columns=['conc_hb_assay', 'conc_hz', 'conc_fe3pp_free'],
                 plot_total_fe=True,
             )
 
@@ -113,10 +122,11 @@ class Model5(Model4b):
         df = self.concentrations.copy()
         if 'conc_hb_assay' not in df.columns:
             df['conc_hb_assay'] = df['conc_hb_htv'] + df['conc_hb_dv']
+        cols = free_haem_cols or self.FREE_HAEM_COLS
         self.fit_metrics = score_fractionation(
             df,
             data,
-            species_map={'Hb': 'conc_hb_assay', 'Hm': 'conc_fe3pp', 'Hz': 'conc_hz'},
-            free_haem_cols=free_haem_cols,
+            species_map={'Hb': 'conc_hb_assay', 'Hm': 'conc_fe3pp_free', 'Hz': 'conc_hz'},
+            free_haem_cols=cols,
         )
         return self.fit_metrics

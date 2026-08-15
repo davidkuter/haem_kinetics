@@ -2,14 +2,14 @@ import pandas as pd
 
 from typing import List, Optional
 
-from haem_kinetics.models.model5 import Model5
+from haem_kinetics.models.model6 import Model6
 from haem_kinetics.models.helpers import lipid_over_aq_ratio
 from haem_kinetics.components.fit_metrics import score_fractionation
 
 
-class Model6(Model5):
+class Model7(Model6):
     """
-    Model 5 + aqueous ⇄ lipid Fe(III) partition.
+    Model 6 + aqueous ⇄ lipid Fe(III) partition.
 
     Hz forms from the lipid pool at literature k_hz (no φ). Assay Hm is
     aqueous + lipid-associated Fe(III). Assay Hb remains HTV + lumen.
@@ -25,7 +25,7 @@ class Model6(Model5):
         'conc_hz',
     ]
 
-    def __init__(self, model_name: str = 'Model 6'):
+    def __init__(self, model_name: str = 'Model 7'):
         super().__init__(model_name=model_name)
         self._k_eff = lipid_over_aq_ratio(
             self.const.vol_fract_lip, self.const.K_partition
@@ -71,7 +71,7 @@ class Model6(Model5):
             init = self._pad_init_with_host(init)
         if len(init) != len(self.DV_SPECIES) + 1:
             raise ValueError(
-                'Model6 requires 6 DV values [HTV, Hb_lumen, Fe2, Fe3_aq, Fe3_lip, Hz] '
+                'Model7 requires 6 DV values [HTV, Hb_lumen, Fe2, Fe3_aq, Fe3_lip, Hz] '
                 'or the 4-value Model 3 init [Hb, Fe2, Fe3, Hz] (Hb seeds HTV; Fe3 seeds aq)'
             )
         for key, val in zip(self.DV_SPECIES + [self.HOST_KEY], init):
