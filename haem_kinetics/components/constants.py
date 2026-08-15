@@ -9,7 +9,7 @@ class Constants:
 
         # - Volumes
         self.vol_rbc = 90e-15  # Volume of RBC is 90 fL, reported here in L
-        # Fixed DV volume for Models 1-5. Comment historically said "4 fL";
+        # Fixed DV volume for Models 1–2. Model 3 uses Garnie Dd2 V_DV(t) instead.
         # Garnie et al. Commun. Biol. 2025 reports Dd2 lumen peaking near ~3.7 fL (dynamic).
         self.vol_dv = 1e-15  # L (1 fL) — fixed-volume models only
         self.vol_fract_lip = 0.016  # Fractional volume of a lipid nanosphere relative to the DV volume
@@ -34,13 +34,16 @@ class Constants:
         #   ([E] = f(ppm, N_prot, V_DV); not an independent constant).
         #   Source: PaxDB "P.falciparum 3D7 - Whole organism, Dd2, SC (Tao,MCP,2014)"
         #   https://pax-db.org/ — gene IDs in comments below.
+        self.ppm_enzymes = {
+            'plm_1': 752,     # PF3D7_1407900 / Q7KQM4
+            'plm_2': 1204,    # PF3D7_1408000 / Q8I6V3
+            'hap': 1373,      # PF3D7_1408100 / Q8IM15 (HAP; PaxDB: "PM III")
+            'plm_4': 3139,    # PF3D7_1407800 / Q8IM16
+            'fp_2': 20.2,     # PF3D7_1115700 / Q8I6U4 (falcipain-2a)
+            'fp_3': 23.5,     # PF3D7_1115400 / Q8IIL0
+        }
         self.conc_enzymes = {
-            'plm_1': self._dv_ppm_to_molar(ppm=752),    # PF3D7_1407900 / Q7KQM4
-            'plm_2': self._dv_ppm_to_molar(ppm=1204),   # PF3D7_1408000 / Q8I6V3
-            'hap': self._dv_ppm_to_molar(ppm=1373),     # PF3D7_1408100 / Q8IM15 (HAP; PaxDB: "PM III")
-            'plm_4': self._dv_ppm_to_molar(ppm=3139),   # PF3D7_1407800 / Q8IM16
-            'fp_2': self._dv_ppm_to_molar(ppm=20.2),    # PF3D7_1115700 / Q8I6U4 (falcipain-2a)
-            'fp_3': self._dv_ppm_to_molar(ppm=23.5),    # PF3D7_1115400 / Q8IIL0
+            name: self._dv_ppm_to_molar(ppm) for name, ppm in self.ppm_enzymes.items()
         }
 
         # -------------------------------------------------------------------------------------
@@ -87,7 +90,7 @@ class Constants:
         # -------------------------------------------------------------------------------------
         self.K_partition = 398  # Fe(III)PPIX lipid partitioning coefficient
 
-    def _dv_ppm_to_molar(self, ppm) -> float:
+    def _dv_ppm_to_molar(self, ppm, vol_dv=None) -> float:
         """
         Converts the concentration of an enzyme in the digestive vacuole from ppm to Molar.
         Formula:
@@ -95,8 +98,12 @@ class Constants:
         mol = ppm * (number of proteins in cell) / (avogadro's constant)
         Molar = mol / (volume of the digestive vacuole)
 
+        Enzyme *amount* is independent of V_DV; molarity scales as 1/V_DV.
         :return: Enzyme concentration in Molar
         """
+        vol = self.vol_dv if vol_dv is None else vol_dv
+        if vol <= 0.0:
+            raise ValueError(f'vol_dv must be positive, got {vol}')
         # Convert from parts per million to parts per 1
         conc = ppm * 10**-6
 
@@ -104,7 +111,7 @@ class Constants:
         conc = conc * self.num_prots / self.avogadro
 
         # Convert to Molar
-        return conc / self.vol_dv
+        return conc / vol
 
     @staticmethod
     def compute_conc_hb_rcb() -> float:

@@ -17,8 +17,7 @@ Every addition to the ladder must be **mechanistically accountable** (chemistry 
 | [Degradation](models/degradation.md) | `degradation.py` | Uptake / Fe(II) release sandbox |
 | [Model 1](models/model1.md) | `model1.py` | Linear uptake; PMs + FP2/3; full Fe speciation; no lipid |
 | [Model 2](models/model2.md) | `model2.py` | Model 1 + empirical `f_exp` uptake (constant `[E]`) |
-
-**Next candidate (not implemented):** Model 3 — Garnie Dd2 dynamic `V_DV(t)` for molar bookkeeping (keep `f_exp` uptake; do not drive uptake from fractionation totals).
+| [Model 3](models/model3.md) | `model3.py` | Model 2 + Garnie Dd2 `V_DV(t)` bookkeeping |
 
 **Archived prior ladder** (φ → f_exp+[E] → lipid → logistic → xtal): [`docs/models/legacy/`](models/legacy/README.md) and `haem_kinetics/models/legacy/`.
 
@@ -31,6 +30,7 @@ Every addition to the ladder must be **mechanistically accountable** (chemistry 
 | Degradation | Exponential | PMs | `f_exp` | — | — |
 | 1 | Linear | **PMs + FP2/3** | constant | None | `k_hz × [Fe3]` |
 | 2 | empirical `f_exp(t)` | PMs + FP2/3 | constant | None | `k_hz × [Fe3]` |
+| 3 | empirical `f_exp(t)` | PMs + FP2/3 | `[E] = n_E / V_DV(t)` | None | `k_hz × [Fe3]` |
 
 **Incremental ladder:** one mechanistic change per step.
 
@@ -38,8 +38,9 @@ Every addition to the ladder must be **mechanistically accountable** (chemistry 
 |------|---------------------------|-------------------------|
 | 1 | Need a minimal closed Fe path | Linear uptake + PMs + FP2/3 + ox + Hz |
 | 2 | Linear uptake leaves most Fe in host | Empirical `f_exp` uptake; `[E]` unchanged |
+| 3 | Fixed `V_DV = 1 fL` vs measured lumen | Garnie Dd2 `V_DV(t)`; `f_exp` and enzyme **amount** unchanged |
 
-Model 2’s `f_exp` is a provisional Fe-delivery schedule fit to cumulative DV Fe (see [model2.md](models/model2.md)) — not Garnie lumen volume and not an independent prediction of total Fe. A discarded alternative (piecewise `dF/dt` of the same fractionation totals) was circular and was removed.
+Model 2’s `f_exp` is a provisional Fe-delivery schedule fit to cumulative DV Fe (see [model2.md](models/model2.md)) — not Garnie lumen volume and not an independent prediction of total Fe. Model 3 uses that same `f_exp` with published `V_DV(t)` for molar bookkeeping only (see [model3.md](models/model3.md)).
 
 `v_dig` includes only proteases that liberate haem from Hb / haem-bearing globin (PMs + falcipains). Downstream peptidases are omitted. Falcipains are present from Model 1 onward (Degradation remains PMs-only as a sandbox).
 
@@ -61,7 +62,7 @@ flowchart LR
 - Consumption rates are zero when their substrate is ≤ 0 (domain of the physical rate law). BDF defaults to `rtol=1e-8`, `atol=1e-12` so the **stated** ODEs are integrated accurately — not a change to the chemistry.
 - Total Fe must stay ≈ **106 fg/cell** without clipping. Negatives or drift mean investigate the model or the solve.
 - Integration defaults to SciPy **`BDF`**.
-- DV species are integrated in **M** (fixed `vol_dv`) and converted to fg/cell for plotting.
+- DV species are integrated in **M** (fixed `vol_dv` on Models 1–2; Model 3 uses `V_DV(t)`) and converted to fg/cell for plotting.
 - `[O2−]` = 0 (SOD) → Fe(III) reduction is off.
 - Parameters: [`haem_kinetics/components/constants.py`](../haem_kinetics/components/constants.py)
 - Experiment tables: [`experimental_data.py`](../haem_kinetics/components/experimental_data.py)
@@ -78,7 +79,8 @@ flowchart LR
 | `v_dig` | Digestion / haem-release rate (M haem-eq / min) |
 | `v_ox` | Fe(II)→Fe(III) oxidation rate |
 | `v_hz` | Haemozoin formation rate |
-| `f_exp(t)` | Empirical `a · b · exp(b · t)` uptake (Model 2); fit to cumulative DV Fe |
+| `f_exp(t)` | Empirical `a · b · exp(b · t)` uptake (Model 2–3); fit to cumulative DV Fe |
+| `V_DV(t)` | Garnie Dd2 lumen volume (Model 3); Gompertz then linear collapse |
 
 Host mass balance:
 
@@ -92,7 +94,7 @@ d[Hb]_RBC / dt = − v_up · V_DV / V_RBC
 | Constant | Value | Units | Description |
 |----------|------:|-------|-------------|
 | `V_RBC` | 90×10⁻¹⁵ | L | Volume of the host red blood cell |
-| `V_DV` | 1×10⁻¹⁵ | L | Fixed digestive-vacuole volume used for M ↔ fg conversion |
+| `V_DV` | 1×10⁻¹⁵ | L | Fixed digestive-vacuole volume (Models 1–2); Model 3 uses Garnie `V_DV(t)` |
 | `f_lip` | 0.016 | — | Fractional volume of lipid nanospheres relative to the DV |
 | `N_A` | 6.022×10²³ | mol⁻¹ | Avogadro's number |
 | `N_prot` | 1.9×10⁸ | — | Average number of proteins per *P. falciparum* cell |
@@ -105,7 +107,7 @@ d[Hb]_RBC / dt = − v_up · V_DV / V_RBC
 
 `[E] = ppm × 10⁻⁶ × N_prot / (N_A · V_DV)`
 
-With fixed `V_DV` this number is constant in time for a run, but it still depends on `ppm` and `V_DV`. Default ppm source: PaxDB **P. falciparum 3D7 — Whole organism, Dd2, SC (Tao, MCP, 2014)** (no DV-specific tissue). `fp_2` is falcipain-2a. Table `kcat` is s⁻¹; code uses `kcat [min⁻¹] = 60 × kcat [s⁻¹]`.
+With fixed `V_DV` this number is constant in time for a run, but it still depends on `ppm` and `V_DV`. Model 3 keeps the same enzyme **amount** and uses `[E](t) = n_E / V_DV(t)`. Default ppm source: PaxDB **P. falciparum 3D7 — Whole organism, Dd2, SC (Tao, MCP, 2014)** (no DV-specific tissue). `fp_2` is falcipain-2a. Table `kcat` is s⁻¹; code uses `kcat [min⁻¹] = 60 × kcat [s⁻¹]`.
 
 **kcat / Km citations:** see [`docs/enzyme_kinetics.md`](enzyme_kinetics.md). Defaults use Banerjee et al. *PNAS* 2002 Table 1 (PM I/II from Luker 1996; HAP & PM IV measured there) and Ramjee et al. *Biochem. J.* 2006 for falcipains. All are **peptide** assays, not native-Hb turnover.
 
@@ -137,7 +139,7 @@ Falcipains (fp_2/3) appear from Model 1 onward. `[E]_i` in equations is always t
 v_dig = 4 · Σ_i  (60 · kcat_i) · [E]_i,eff · [Hb]_tet / (Km_i + [Hb]_tet)
 ```
 
-where `[E]_i,eff` is constant PaxDB `[E]_i` on the active ladder (Models 1–2). Degradation’s sandbox still uses `f_exp`-scaled PMs.
+where `[E]_i,eff` is constant PaxDB `[E]_i` on Models 1–2 and `n_E / V_DV(t)` on Model 3. Degradation’s sandbox still uses `f_exp`-scaled PMs.
 
 ---
 
@@ -145,18 +147,18 @@ where `[E]_i,eff` is constant PaxDB `[E]_i` on the active ladder (Models 1–2).
 
 ```bash
 pip install -e .
-python examples/run.py   # writes examples/model1.png, model2.png, degradation.png
+python examples/run.py   # writes examples/model1.png, model2.png, model3.png, degradation.png
 ```
 
 ```python
-from haem_kinetics.models.model2 import Model2
+from haem_kinetics.models.model3 import Model3
 
-model = Model2()
+model = Model3()
 model.run(
     t=[0, 1700],
     init=[0.018, 0.0, 0.0, 0.36],
     t_eval=range(0, 1700, 20),
-    plot='examples/model2.png',
+    plot='examples/model3.png',
 )
 ```
 
@@ -166,12 +168,12 @@ Legacy imports: `from haem_kinetics.models.legacy import LegacyModel3` (etc.).
 
 ## Cross-cutting issues
 
-1. **Fixed `vol_dv = 1 fL`:** Garnie et al. 2025 reports dynamic Dd2 lumen (~3.7 fL peak). Natural next Model 3 is `V_DV(t)` bookkeeping — not driving uptake from fractionation totals.
-2. **Models 1–2:** full PaxDB `[E]` from `t` = 0 digests DV Hb almost as soon as it arrives — enzyme timing is a competing next step.
+1. **Models 1–2 use `vol_dv = 1 fL`:** Garnie et al. 2025 reports dynamic Dd2 lumen (~3.7 fL peak). Model 3 uses that `V_DV(t)` for molar bookkeeping without driving uptake from fractionation totals.
+2. **Models 1–3:** full PaxDB enzyme **amount** from `t` = 0 digests DV Hb almost as soon as it arrives — enzyme timing is a later step.
 3. **NF54 digits** in `experimental_data.py` may not match Garnie 2025; prefer Dd2.
 4. Peptide `kcat`/`Km` (Banerjee/Luker; Ramjee) applied to DV Hb is an approximation — see [`enzyme_kinetics.md`](enzyme_kinetics.md).
 5. ppm are Tao 2014 Dd2 whole-organism (not DV-specific).
-6. Model 2 `f_exp` is empirical (cumulative DV Fe fit); see [model2.md](models/model2.md).
+6. Model 2–3 `f_exp` is empirical (cumulative DV Fe fit); see [model2.md](models/model2.md).
 
 ---
 

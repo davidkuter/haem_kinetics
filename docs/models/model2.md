@@ -1,7 +1,7 @@
 # Model 2
 
 **Code:** [`haem_kinetics/models/model2.py`](../../haem_kinetics/models/model2.py)  
-**Up:** [Model index](../models.md) · **Prev:** [Model 1](model1.md)
+**Up:** [Model index](../models.md) · **Prev:** [Model 1](model1.md) · **Next:** [Model 3](model3.md)
 
 Model 1 plus **accelerating host→DV uptake** via fractional exponential growth of remaining host Hb. Protease levels stay at constant PaxDB `[E]`. No lipid chemistry.
 
@@ -34,7 +34,7 @@ It is **not**:
 - digestive-vacuole volume growth `V_DV(t)` (Garnie Dd2 lumen peaks ~3.7 fL with Gompertz growth then collapse);
 - equivalent to Elliott’s ring-stage “Big Gulp” (a single early FV-biogenesis event). A lasting `Hb_DV` spike is not expected in the trophozoite fractionation window: standing Hb stays ~1–2 fg while cumulative Fe appears as Hz.
 
-Fixed `V_DV = 1 fL` bookkeeping is unchanged. A later model can introduce Garnie-style dynamic `V_DV(t)` for molar bookkeeping without replacing `f_exp` by assay `dF/dt`.
+Fixed `V_DV = 1 fL` bookkeeping is unchanged. **Model 3** introduces Garnie Dd2 `V_DV(t)` for molar bookkeeping without replacing `f_exp` by assay `dF/dt`.
 
 **Deferred on purpose:** co-scaling enzymes with `f_exp` (old legacy Model 3) mixes two mechanisms; full PaxDB `[E]` already over-digests DV Hb in Model 1.
 

@@ -14,6 +14,7 @@ Detailed pages (with process schematics):
 | Degradation | [docs/models/degradation.md](docs/models/degradation.md) |
 | Model 1 | [docs/models/model1.md](docs/models/model1.md) |
 | Model 2 | [docs/models/model2.md](docs/models/model2.md) |
+| Model 3 | [docs/models/model3.md](docs/models/model3.md) |
 | Legacy 2–6 | [docs/models/legacy/](docs/models/legacy/README.md) |
 
 ## Quick start
