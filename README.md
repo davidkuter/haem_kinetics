@@ -22,8 +22,9 @@ Detailed pages (with process schematics):
 | Model 6 | [docs/models/model6.md](docs/models/model6.md) |
 | Model 7 | [docs/models/model7.md](docs/models/model7.md) |
 | Model 8 | [docs/models/model8.md](docs/models/model8.md) |
-| Model 9 | [docs/models/model9.md](docs/models/model9.md) |
-| Model 10 (what-if) | [docs/models/model10.md](docs/models/model10.md) |
+| Model 9a / 9b / 9c | [docs/models/model9.md](docs/models/model9.md) |
+| Model 10 | [docs/models/model10.md](docs/models/model10.md) |
+| Model 99 (what-if) | [docs/models/model99.md](docs/models/model99.md) |
 | Legacy 2–6 | [docs/models/legacy/](docs/models/legacy/README.md) |
 
 ## Quick start

@@ -31,7 +31,7 @@ k_release(t) = k_htv_release · s_PM(t)
 
 **Not this step:**
 
-- A scale fitted so Dd2 Hb sits at 1.9 fg (that is [Model 10](model10.md)).
+- A scale fitted so Dd2 Hb sits at 1.9 fg (that is [Model 99](model99.md)).
 - Flattening 2b to decorate this curve.
 - A second unfused extra-DV pool.
 - Lipid / interfacial Fe(III) ([Model 7](model7.md), [Model 8](model8.md)).

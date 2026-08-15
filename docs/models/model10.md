@@ -1,90 +1,137 @@
-# Model 10 (what-if)
+# Model 10
 
 **Code:** [`haem_kinetics/models/model10.py`](../../haem_kinetics/models/model10.py)  
-**Up:** [Model index](../models.md) · **Prev:** [Model 9](model9.md)
+**Up:** [Model index](../models.md) · **Prev:** [Model 9](model9.md) · **Next:** [Model 99](model99.md) (what-if)
 
-**This is not a mechanistic ladder step.** Same ODEs as Model 9 (including crystal-area growth). Two knobs are freed against Garnie Dd2 to ask: *if* inner-vesicle lysis were slower and *if* the interfacial fraction were slightly larger, could Hb and Hm approach the assay?
+Model 9a chemistry (crystal-area growth, sphere 2/3) with **amount encoding for all Fe species**. Tests whether making Fe2, Fe3, and Hz amount-encoded (instead of lumen species) changes the late-phase dynamics.
 
-They are **not** Klemba’s `t½ < 20 min` and **not** `K_xtal = 3δ/R`. **`f_exp` is unchanged** (Model 2b two-phase): do not retune `a, b` here. The `k_release` / `K_xtal` numbers below were chosen on the **Model 2a** inventory and are not refit. Model 8 keeps the citations; Model 9 keeps the area law. This page is a diagnostic.
-
----
-
-## What changed vs Model 9
-
-| Item | Model 9 | Model 10 |
-|------|---------|----------|
-| ODEs | aq ⇄ lip ⇄ xtal → Hz with area factor; inner-vesicle cargo | **Unchanged** |
-| `f_exp` | Model 2b two-phase | **Unchanged** |
-| `s_PM` on lysis | `k_release(t) = k_Klemba · s_PM(t)` (Model 6) | **Unchanged form** |
-| plateau `k_release` | ln(2)/20 min⁻¹ (Klemba bound) | **0.477 × that** (plateau `t½ ≈ 41.9 min`) |
-| `K_xtal` | `3δ/R = 0.08` | **0.10** (grid vs Hm χ²_red) |
-| Area factor | `(n_Hz / n_Hz_start)^{2/3}` | **Inherited** (not refit) |
-
-So `k_10(t) = 0.4774 · k_Klemba · s_PM(t)`. The scale was not refit after Model 6 or Model 9.
-
-**Not claimed:** a new trafficking paper, a new NLB size, or that Garnie prefers these numbers as biology. `k_hz` is still the Egan lipid-assay value.
+**Result:** No change in fg outputs compared to Model 9a. The `AMOUNT_SPECIES` mechanism preserves mass balance but doesn't change the time courses. See "Known behaviour / issues" for details.
 
 ---
 
-## How the knobs were chosen
+## What changed vs Model 9 (and why)
 
-Standing inner-vesicle cargo is QSS: `n_HTV ≈ v_up / k_release(t)`. Scaling the plateau `k` by `s` is `k_10 = s · k_Klemba · s_PM(t)`. Least-squares `s` vs Garnie Dd2 Hb (ages 20–44 h) is **0.4774** → plateau `t½ ≈ 41.9 min`. That is slower than Klemba’s **upper** bound on half-time (`t½ < 20 min`). Klemba’s figure is PM II trafficking, not inner-vesicle Hb lysis; this scale is still a diagnostic, not a replacement citation. It was chosen on **Model 2a** and is not refit.
+**Problem in Model 9a:** The model Hm peaks around 34h then drops sharply at 39h; experimental Hm continues rising through 44h. Model Hb also dips at 39h; experimental Hb is flat. Both discrepancies share a common cause: the DV aqueous lumen collapse (36–46h) concentrates all lumen species, accelerating crystallization and pulling Fe through the pathway faster than experiment suggests.
 
-With that `k_release` held, `K_xtal` was gridded `{0.06, 0.08, 0.10, 0.12, 0.16, 0.20, 0.24}`:
+**But physically:** The collapsing volume is **aqueous lumen** (pHrodo-visible). NLBs and Hz crystals are not aqueous:
 
-| `K_xtal` | Hm RMSE | Hm χ²_red | Hm signed |
-|--------:|--------:|----------:|----------:|
-| 0.08 (M8 geometry) | 0.69 | 15.8 | +0.19 |
-| **0.10** | 0.85 | **2.4** | −0.43 |
-| 0.12 | 1.18 | 3.5 | −0.85 |
+| Compartment | Physical location | Should concentrate during lumen collapse? |
+|-------------|-------------------|-------------------------------------------|
+| `conc_fe3pp_aq` | Aqueous lumen | **Yes** |
+| `conc_fe3pp_lip` | Inside NLB droplets | **No** — NLBs are lipid, not aqueous |
+| `conc_fe3pp_xtal` | NLB-water interface | **No** — interface area is NLB geometry |
+| `conc_hz` | Solid crystals | **No** — Garnie explicitly excludes Hz from pHrodo volume |
 
-**0.10** is the lowest Hm χ²_red on that grid (RMSE prefers 0.08; early points have small SEM). `k_xtal_ex` is unchanged (does not set standing Hm).
+**Change (one mechanism):** All Fe species (Fe2, Fe3_aq, Fe3_lip, Fe3_xtal) and Hz become `AMOUNT_SPECIES`. Their derivatives no longer include the `_dilution` term. Only Hb_dv remains a true lumen species. The lumen→Fe transfer is scaled by `V_DV(t)/V_ref` to preserve mass balance.
 
-Starting the ODE at 0 h post-invasion would **not** replace this `k_release` tweak: standing Hb is `v_up(now)/k`, not integrated ring-stage uptake ([timing note](../models.md)).
+| Item | Model 9a | Model 10 |
+|------|----------|----------|
+| ODEs | aq ⇄ lip ⇄ xtal → Hz with area factor | Same topology |
+| `conc_fe3pp_lip` | Lumen species (concentrated by collapse) | **Amount species** |
+| `conc_fe3pp_xtal` | Lumen species (concentrated by collapse) | **Amount species** |
+| `conc_hz` | Lumen species (concentrated by collapse) | **Amount species** |
+| `v_hz` | `k_hz · [Fe3]_xtal · A_Hz` | Same rate law |
+| Late Hm / Hb | Dips at 39h (artificial concentration) | **Should stay elevated** |
 
----
+**Not this step:**
 
-## Why the what-if knobs miss on 2b (do not retune)
-
-`k_release` and `K_xtal` were least-squares / grid chosen on the interfacial model **with Model 2a uptake**. Models 3–10 now inherit 2b, Models 6–10 inherit `k_release ∝ s_PM`, and Model 10 also inherits Model 9 area growth. Late `v_up` is larger, so standing cargo overshoots Dd2 Hb. **Do not refit these two knobs** to recover the old χ² — that would be a second Garnie fit, not chemistry.
-
-Hz is no longer an inventory problem: DV Fe RMSE is 2.56 (host ~5 fg at 44 h). The leftover ~5 fg is the last gulp 2b still damps.
-
----
-
-## What this can and cannot do
-
-- **Could (on 2a, without area):** show the interfacial topology had enough freedom for Hb χ²_red ~1 and Hm χ²_red ~2 if `k_release` and `K_xtal` were free.
-- **Cannot (on 2b, with those same knobs):** recover that Hb/Hm match. Late delivery is larger; the 2a-tuned scale overshoots.
-- **Cannot** flatten Hb vs age by a constant scale. Model 6 already clocks lysis with `s_PM`; this page only scales that clock.
-- **Cannot** restore Klemba or NLB geometry. A later mechanistic step would be a cited lysis time or a cited `(δ, R)`, not these two numbers.
+- Changing the rate constants or `K_xtal`.
+- Adding time-dependent NLB count or size.
+- Fitting the exponent.
 
 ---
 
-## Next mechanisms (ranked; not this page)
+## Process schematic
 
-One mechanistic change per numbered model. Do not invent a new `a, b`.
+```mermaid
+flowchart LR
+  subgraph aq [Aqueous Lumen]
+    Host["conc_hb_rbc"] -->|"f_exp"| HTV["conc_hb_htv"]
+    HTV -->|"k_release"| Lumen["conc_hb_dv"]
+    Lumen -->|"PM I/II/FP-2"| Fe2["conc_fe2pp"]
+    Fe2 -->|"k_ox x O2"| Fe3aq["conc_fe3pp_aq"]
+  end
+  subgraph nlb [NLB Compartment]
+    Fe3aq <--> Fe3lip["conc_fe3pp_lip"]
+    Fe3lip <--> Fe3xtal["conc_fe3pp_xtal"]
+    Fe3xtal -->|"k_hz x A_Hz"| Hz["conc_hz"]
+  end
+```
 
-1. **Recommended if Model 2b’s last gulp is still short:** Garnie Fig. 5B Dd2 delivery phases as **`v_up`**, not a new `f_exp` `b` — **0.9 fg/h** (20–29 h) then **4.8 fg/h** (29–44 h), clipped by remaining host. Model 3 deferred those numbers as `v_dig` because they are the scoring inventory. Using them as uptake is the observation `f_exp` claimed to encode but does not (wrong *shape* for the last ~5 fg). **Not** pHrodo Fig. 2C (standing acidic-lumen probe, not `dFe/dt`).
-2. **Later, if (1) is too circular:** cytostome / DV-surface-limited fusion (Garnie’s `r²` vs `r³` argument). Rate set by contact area, not `f(t) × n_host`. Needs a cited area or vesicle-fusion law.
-3. **Hb without slowing `k_release`:** a cited inner-vesicle lysis time (Klemba is PM II trafficking), or a measured native-Hb `kcat` with moles of enzyme ([enzyme_kinetics.md](../enzyme_kinetics.md)). No vesicle-number cap. Do not refit the 2a what-if scale on 2b. Model 6 already tests `k_release ∝ s_PM`.
-4. **Hm without fitting `K_xtal`:** keep `3δ/R = 0.08`. Model 9 already tests `v_hz ∝ A_Hz`. Extra delivered Fe may still overfill assay Hm; if the *shape* is still wrong, a cited NLB size/count vs time is the next chemistry, not a fitted exponent. Do not raise `k_hz` or restore `φ`.
-5. **Do not bother for late Hz while ~5 fg stays in the host:** lipid split, xtal fraction, and `k_hz` cannot supply that iron.
+The aqueous lumen (left) collapses during 36–46h; the NLB compartment (right) does not.
+
+---
+
+## Governing equations
+
+Same as Model 9a, but with different volume treatment:
+
+```text
+Lumen species (diluted by V_DV collapse):
+  d[Fe3]_aq / dt = v_ox − v_ex + dil([Fe3]_aq)
+  d[Hb]_DV / dt = v_release − v_dig + dil([Hb]_DV)
+  d[Fe2] / dt = v_dig − v_ox + dil([Fe2])
+
+Amount species (no dilution):
+  d[Fe3]_lip / dt = v_ex − v_lip↔xtal
+  d[Fe3]_xtal / dt = v_lip↔xtal − v_hz
+  d[Hz] / dt = v_hz
+```
+
+For the area factor, Hz amount is `[Hz] · V_ref` (not `V_DV(t)`), consistent with amount encoding.
+
+---
+
+## Parameters
+
+All parameters unchanged from Model 9a. The change is volume treatment, not rate constants.
+
+| Constant | Value | Units | Source |
+|----------|------:|-------|--------|
+| `AMOUNT_SPECIES` | HTV, lip, xtal, Hz | — | Compartmentalization hypothesis |
+
+---
+
+## Assumptions
+
+- NLBs are separate lipid compartments whose size/number does not track aqueous lumen collapse.
+- Hz crystals are solid and excluded from the aqueous pHrodo volume.
+- The aq ⇄ lip exchange still operates (Fe(III) can enter NLBs from aqueous lumen).
+- The interfacial fraction `K_xtal` is set by NLB geometry, unchanged.
+
+---
+
+## Known behaviour / issues
+
+**Important finding:** The simple `AMOUNT_SPECIES` approach preserves mass balance but **does not change the fg time courses** compared to Model 9a. This is because:
+
+1. The ODE integration produces values that differ from Model 9a by exactly `V_DV(t)/V_ref`
+2. The fg conversion compensates: Model 9a uses `V_DV(t)`, Model 10 uses `V_ref`, producing identical fg outputs
+3. The rate equations (v_hz, exchange rates) also scale by the same ratio, maintaining dynamical equivalence
+
+**What this means:** The late-phase Hm/Hb dip in Model 9a is **not caused by** the simple concentration of Fe3 species during DV collapse. The dip persists because the lumen→NLB transfer rate (from Hb_dv digestion) is inherently tied to the lumen volume through mass balance.
+
+**Next hypothesis:** The dip may be due to:
+1. Incorrect uptake kinetics (`f_exp`) in the late phase
+2. A genuine need for two-compartment volumes (V_aq shrinks, V_nlb constant) with explicit interfacial exchange
+3. Dynamic NLB number/size changes that affect crystallization capacity
+
+This model demonstrates that naively making species "amount-encoded" doesn't change the physics—a proper multi-compartment model is needed.
 
 ---
 
 ## Fit vs Garnie Dd2
 
-Protocol: [models.md](../models.md#fit-vs-garnie-dd2-tracking). Recompute with `python examples/run.py`.
+Protocol and definitions: [models.md](../models.md#fit-vs-garnie-dd2-tracking). Recompute with `python examples/run.py`.
 
 | Series | RMSE (fg/cell) | MAE | mean signed error | χ²_red | n |
-|--------|---------------:|----:|-----:|-------:|--:|
-| Hb | 2.33 | 2.26 | +2.26 | 52.7 | 9 |
-| Hm | 1.24 | 0.75 | −0.63 | 1.29 | 9 |
-| Hz | 2.82 | 2.58 | −1.84 | 0.11 | 9 |
+|--------|---------------:|----:|------------------:|-------:|--:|
+| Hb | 0.33 | 0.25 | 0.14 | 0.74 | 9 |
+| Hm | 1.14 | 0.88 | 0.00 | 53.28 | 9 |
+| Hz | 2.30 | 1.92 | −0.35 | 0.08 | 9 |
 | DV Fe | 2.56 | 1.98 | −0.21 | 0.09 | 9 |
 
-**Vs Model 9:** the 2a-tuned knobs overshoot Hb (χ²_red 0.74 → 52.7, signed +2.26). Hm χ²_red 53 → 1.29 because this page inherits the area law and a larger `K_xtal`; that is not a reason to treat 0.10 as chemistry. Hz RMSE 2.30 → 2.82. DV Fe unchanged. Do not refit `k_release` / `K_xtal` here.
+**Vs Model 9a:** Identical scores. The `AMOUNT_SPECIES` encoding preserves mass balance but produces identical fg outputs through compensating volume conversion. See "Known behaviour / issues" above.
 
 ---
 
@@ -106,10 +153,6 @@ model.run(
 
 ## References
 
-- Klemba bound (what Model 10 **violates** at plateau): [model5.md](model5.md)
-- Model 6 `s_PM` lysis clock (what Model 10 **scales**): [model6.md](model6.md)
-- Geometric `K_xtal` (what Model 10 **replaces**): [model8.md](model8.md)
-- Crystal-area growth (what Model 10 **inherits**): [model9.md](model9.md)
-- Model 2b `f_exp` (what Model 10 **does not retune**): [model2.md](model2.md)
-- Assay vs pHrodo: [garnie_fractionation.md](../garnie_fractionation.md)
+- Jackson KE, Klonis N, Ferguson DJP, Adisa A, Dogovski C, Tilley L. Food vacuole-associated lipid bodies and heterogeneous lipid environments in the malaria parasite, *Plasmodium falciparum*. *Mol. Microbiol.* (2004) 54:109–122. [doi:10.1111/j.1365-2958.2004.04284.x](https://doi.org/10.1111/j.1365-2958.2004.04284.x)
+- Pisciotta JM, Coppens I, Tripathi AK, et al. The role of neutral lipid nanospheres in *Plasmodium falciparum* haem crystallization. *Biochem. J.* (2007) 402:197–204. [doi:10.1042/bj20060986](https://doi.org/10.1042/bj20060986)
 - Garnie LF, Egan TJ, Wicht KJ. *Commun. Biol.* (2025) 8:1564. [doi:10.1038/s42003-025-08991-z](https://doi.org/10.1038/s42003-025-08991-z)

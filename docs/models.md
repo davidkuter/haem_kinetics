@@ -23,8 +23,9 @@ Every addition to the ladder must be **mechanistically accountable** (chemistry 
 | [Model 6](models/model6.md) | `model6.py` | Model 5 + `k_release(t) ∝ s_PM(t)` (Garnie Fig. 3 lysis clock) |
 | [Model 7](models/model7.md) | `model7.py` | Model 6 + aqueous ⇄ lipid Fe(III); Hz from lipid at `k_hz` |
 | [Model 8](models/model8.md) | `model8.py` | Model 7 + interfacial (crystal-competent) Fe(III); Hz from xtal |
-| [Model 9](models/model9.md) | `model9.py` | Model 8 + crystal-area growth: `v_hz ∝ [Fe3]_xtal · (n_Hz / n_Hz_start)^{2/3}` |
-| [Model 10](models/model10.md) | `model10.py` | **What-if** (not mechanistic): Model 9 with Garnie-tuned `k_release` and `K_xtal` (`f_exp` unchanged) |
+| [Model 9a/9b/9c](models/model9.md) | `model9a.py`, `model9b.py`, `model9c.py` | Model 8 + crystal-area growth: exponent 2/3 (sphere), 1/2 (rod), 1/3 (needle) |
+| [Model 10](models/model10.md) | `model10.py` | Model 9a + NLB/Hz compartmentalization (lip/xtal/Hz not concentrated by lumen collapse) |
+| [Model 99](models/model99.md) | `model99.py` | **What-if** (not mechanistic): Model 9a with Garnie-tuned `k_release` and `K_xtal` (`f_exp` unchanged) |
 
 **Archived prior ladder** (φ → f_exp+[E] → lipid → logistic → xtal): [`docs/models/legacy/`](models/legacy/README.md) and `haem_kinetics/models/legacy/`.
 
@@ -45,25 +46,29 @@ Every addition to the ladder must be **mechanistically accountable** (chemistry 
 | 6 | same as 5; **`k_release(t) ∝ s_PM(t)`** | 4b lumen chemistry | `s_PM(t) · n_E / V_DV(t)` | None | `k_hz × [Fe3]` |
 | 7 | same as 6 | 4b lumen chemistry | `s_PM(t) · n_E / V_DV(t)` | **aq ⇄ lip** | `k_hz × [Fe3]_lip` |
 | 8 | same as 6 | 4b lumen chemistry | `s_PM(t) · n_E / V_DV(t)` | aq ⇄ lip ⇄ **xtal** | `k_hz × [Fe3]_xtal` |
-| 9 | same as 8 | 4b lumen chemistry | `s_PM(t) · n_E / V_DV(t)` | same | `k_hz × [Fe3]_xtal × (n_Hz / n_Hz_start)^{2/3}` |
-| 10 | same as 9; **slower plateau `k_release` (fit)** | 4b lumen chemistry | `s_PM(t) · n_E / V_DV(t)` | same; **`K_xtal` fit** | same area law as 9 |
+| 9a | same as 8 | 4b lumen chemistry | `s_PM(t) · n_E / V_DV(t)` | same | `k_hz × [Fe3]_xtal × (n_Hz / n_Hz_start)^{2/3}` (sphere) |
+| 9b | same as 8 | 4b lumen chemistry | `s_PM(t) · n_E / V_DV(t)` | same | `k_hz × [Fe3]_xtal × (n_Hz / n_Hz_start)^{1/2}` (rod) |
+| 9c | same as 8 | 4b lumen chemistry | `s_PM(t) · n_E / V_DV(t)` | same | `k_hz × [Fe3]_xtal × (n_Hz / n_Hz_start)^{1/3}` (needle) |
+| 10 | same as 9a | 4b lumen chemistry | `s_PM(t) · n_E / V_DV(t)` | **lip/xtal/Hz as amounts** | same area law as 9a |
+| 99 | same as 9a; **slower plateau `k_release` (fit)** | 4b lumen chemistry | `s_PM(t) · n_E / V_DV(t)` | same; **`K_xtal` fit** | same area law as 9a |
 
 **Incremental ladder:** one mechanistic change per step.
 
 | Step | Problem in previous model | What this model changes |
 |------|---------------------------|-------------------------|
 | 1 | Need a minimal closed Fe path | Linear uptake + PMs + FP2/3 + ox + Hz |
-| 2a / 2b | Linear uptake leaves most Fe in host | Empirical `f_exp(t)` × remaining host; enzyme **amount** unchanged. **2a** = one phase (comparison). **2b** = two phases, break at Garnie Fig. 5B 29 h, `f_exp` continuous at the join (ladder default). Models 3–10 inherit Model 2b |
+| 2a / 2b | Linear uptake leaves most Fe in host | Empirical `f_exp(t)` × remaining host; enzyme **amount** unchanged. **2a** = one phase (comparison). **2b** = two phases, break at Garnie Fig. 5B 29 h, `f_exp` continuous at the join (ladder default). Models 3–9c inherit Model 2b |
 | 3 | Full PaxDB amount from `t` = 0 collapses DV Hb | Garnie Fig. 3 `s_PM(t)` on that amount; `f_exp` unchanged |
 | 4a / 4b | Peptide `kcat` on native tetramer; PM II dominates `Vmax` | Goldberg ordered pathway: native-competent set vs peptide MM on globin |
 | 5 | Lumen `Vmax` still ≫ uptake; standing Hb ~0 | Inaccessible **inner-vesicle** cargo in the DV before 4b lumen proteases; `k_release` from Klemba lysis bound |
 | 6 | Constant `k_release` makes assay Hb track `v_up(t)` | `k_release(t) = k_Klemba · s_PM(t)` (Fig. 3 clock; plateau keeps Klemba `t½`) |
 | 7 | Single Fe(III) pool drains Hm at lipid-assay `k_hz` | Aqueous ⇄ lipid Fe(III); `v_hz` on lipid pool at full `k_hz` (no `φ`) |
 | 8 | Lipid pool still drains Hm at full `k_hz` | Interfacial / crystal-competent Fe(III); `v_hz` on xtal at full `k_hz` |
-| 9 | First-order `k_hz` does not grow Egan’s accelerating structure | `v_hz = k_hz · [Fe3]_xtal · (n_Hz / n_Hz_start)^{2/3}` (amount, sphere geometry) |
-| 10 | What-if: can Hb/Hm match if two knobs are freed? | **Not chemistry** — slower plateau `k_release` and larger `K_xtal` vs Garnie Dd2; inherits Model 9 area; `f_exp` unchanged |
+| 9a/9b/9c | First-order `k_hz` does not grow Egan’s accelerating structure | `v_hz = k_hz · [Fe3]_xtal · (n_Hz / n_Hz_start)^α` — α = 2/3 (sphere), 1/2 (rod), 1/3 (needle) |
+| 10 | Model 9 Hm/Hb dip at 39h; experiment flat/rising | All Fe species as `AMOUNT_SPECIES`; **no change in fg outputs** (see model10.md) |
+| 99 | What-if: can Hb/Hm match if two knobs are freed? | **Not chemistry** — slower plateau `k_release` and larger `K_xtal` vs Garnie Dd2; inherits Model 9a area; `f_exp` unchanged |
 
-Model 2a’s `f_exp` is a provisional first-order remaining-host clock with `a`, `b` fit to cumulative **fractionation** Fe (`Hb+Hm+Hz`; see [model2.md](models/model2.md) and [garnie_fractionation.md](garnie_fractionation.md)) — not lumen volume, not pHrodo Fig. 2C, not cytostome kinetics, and not “delivery to the parasite” with a later DV step. On Dd2, ODE DV Fe **R² = 0.612**, RMSE 15.89 fg (~36 fg still in host at 44 h). Model 2b is the same constitutive class with a faster late phase after Garnie Fig. 5B’s 29 h break, `f_exp` continuous at the join (DV Fe RMSE 2.56, R² = 0.990, host ~5 fg at 44 h); **Models 3–10 inherit 2b**. The **form** is general; `a` and `b` can be refit to another strain. Variable `V_DV(t)` (`variable_dv_volume`) is **shared bookkeeping** from Model 1 onward (not a numbered ladder step). The present numerical schedule is Garnie Dd2 **aqueous lumen**. Model 3’s one change is the blot-derived amount clock (see [model3.md](models/model3.md)). Model 4’s one change is native vs peptide substrate (two encodings: [model4.md](models/model4.md)). Model 5’s one change is inaccessible **inner-vesicle** cargo already in the DV on the **4b** pathway (see [model5.md](models/model5.md)); 4a’s globin pool is not carried because it never accumulated. A native-Hb `kcat_app` was attempted and still lacks moles of enzyme ([enzyme_kinetics.md](enzyme_kinetics.md)); that gap is not filled with a Garnie-fitted scalar. Model 6’s one change is `k_release(t) ∝ s_PM(t)` so lysis follows the same Fig. 3 clock (see [model6.md](models/model6.md)). Model 7’s one change is Egan lipid partition of Fe(III) (see [model7.md](models/model7.md)), not `φ` on `k_hz`. Model 8’s one change is interfacial (crystal-competent) Fe(III) so bulk NLB haem is not the `k_hz` substrate (see [model8.md](models/model8.md)). Model 9’s one change is crystal-area growth of that `v_hz` (see [model9.md](models/model9.md)): amount, not lumen concentration; `n_Hz_start` is the 20 fg seed; `2/3` is sphere geometry. Model 10 is a **what-if** on that topology ([model10.md](models/model10.md)), not a cited mechanism: slower plateau `k_release` and slightly larger `K_xtal`, chosen on the **2a** inventory and not refit. It does **not** retune `f_exp`.
+Model 2a’s `f_exp` is a provisional first-order remaining-host clock with `a`, `b` fit to cumulative **fractionation** Fe (`Hb+Hm+Hz`; see [model2.md](models/model2.md) and [garnie_fractionation.md](garnie_fractionation.md)) — not lumen volume, not pHrodo Fig. 2C, not cytostome kinetics, and not “delivery to the parasite” with a later DV step. On Dd2, ODE DV Fe **R² = 0.612**, RMSE 15.89 fg (~36 fg still in host at 44 h). Model 2b is the same constitutive class with a faster late phase after Garnie Fig. 5B’s 29 h break, `f_exp` continuous at the join (DV Fe RMSE 2.56, R² = 0.990, host ~5 fg at 44 h); **Models 3–9c inherit 2b**. The **form** is general; `a` and `b` can be refit to another strain. Variable `V_DV(t)` (`variable_dv_volume`) is **shared bookkeeping** from Model 1 onward (not a numbered ladder step). The present numerical schedule is Garnie Dd2 **aqueous lumen**. Model 3’s one change is the blot-derived amount clock (see [model3.md](models/model3.md)). Model 4’s one change is native vs peptide substrate (two encodings: [model4.md](models/model4.md)). Model 5’s one change is inaccessible **inner-vesicle** cargo already in the DV on the **4b** pathway (see [model5.md](models/model5.md)); 4a’s globin pool is not carried because it never accumulated. A native-Hb `kcat_app` was attempted and still lacks moles of enzyme ([enzyme_kinetics.md](enzyme_kinetics.md)); that gap is not filled with a Garnie-fitted scalar. Model 6’s one change is `k_release(t) ∝ s_PM(t)` so lysis follows the same Fig. 3 clock (see [model6.md](models/model6.md)). Model 7’s one change is Egan lipid partition of Fe(III) (see [model7.md](models/model7.md)), not `φ` on `k_hz`. Model 8’s one change is interfacial (crystal-competent) Fe(III) so bulk NLB haem is not the `k_hz` substrate (see [model8.md](models/model8.md)). Model 9’s one change is crystal-area growth of that `v_hz` (see [model9.md](models/model9.md)): amount, not lumen concentration; `n_Hz_start` is the 20 fg seed; three exponents test crystal habit (9a sphere, 9b rod, 9c needle). Model 10's one change is amount encoding for all Fe species ([model10.md](models/model10.md)): all Fe and Hz become `AMOUNT_SPECIES` but this doesn't change fg outputs because the volume conversion compensates. Model 99 is a **what-if** on Model 9a topology ([model99.md](models/model99.md)), not a cited mechanism: slower plateau `k_release` and slightly larger `K_xtal`, chosen on the **2a** inventory and not refit. It does **not** retune `f_exp`.
 
 `v_dig` includes only proteases that liberate haem from Hb / haem-bearing globin (PMs + falcipains). Downstream peptidases are omitted. Falcipains are present from Model 1 onward (Degradation remains PMs-only as a sandbox).
 
@@ -73,7 +78,7 @@ Model 2a’s `f_exp` is a provisional first-order remaining-host clock with `a`,
 
 Scores are **diagnostics**, not an objective to minimize with extra terms. A ladder step counts as an improvement only if the change is mechanistic **and** the relevant series move toward the assay.
 
-**Protocol:** `t = [0, 1700]` min from 16 h, `t_eval` step 20 min, init `[0.018, 0, 0, 0.36]`. Model interpolated onto Dd2 ages 20–44 h (`n` = 9). Hm is scored as `conc_fe3pp` (Models 1–6), aq + lip (Model 7), or aq + lip + xtal (Models 8–10). Model 4a scores assay Hb as native + globin; Models 5–10 as inner-vesicle + lumen Hb. Init Hb seeds the inner-vesicle pool in Models 5–10. What the tubes measure: [garnie_fractionation.md](garnie_fractionation.md).
+**Protocol:** `t = [0, 1700]` min from 16 h, `t_eval` step 20 min, init `[0.018, 0, 0, 0.36]`. Model interpolated onto Dd2 ages 20–44 h (`n` = 9). Hm is scored as `conc_fe3pp` (Models 1–6), aq + lip (Model 7), or aq + lip + xtal (Models 8–99). Model 4a scores assay Hb as native + globin; Models 5–99 as inner-vesicle + lumen Hb. Init Hb seeds the inner-vesicle pool in Models 5–99. What the tubes measure: [garnie_fractionation.md](garnie_fractionation.md).
 
 | Symbol | Definition |
 |--------|------------|
@@ -96,10 +101,13 @@ Mean signed error is listed on each model page. Recompute with `python examples/
 | 6 | 0.33 | 0.74 | 3.20 | 217 | 3.59 | 0.22 | 2.56 | 0.09 |
 | 7 | 0.33 | 0.74 | 3.13 | 207 | 3.54 | 0.22 | 2.56 | 0.09 |
 | 8 | 0.33 | 0.74 | 3.31 | 102 | 4.10 | 0.17 | 2.56 | 0.09 |
-| 9 | 0.33 | 0.74 | 1.14 | 53.3 | 2.30 | 0.08 | 2.56 | 0.09 |
-| 10 | 2.33 | 52.7 | 1.24 | 1.29 | 2.82 | 0.11 | 2.56 | 0.09 |
+| 9a | 0.33 | 0.74 | 1.14 | 53.3 | 2.30 | 0.08 | 2.56 | 0.09 |
+| 9b | 0.33 | 0.74 | 1.18 | 59.7 | 2.36 | 0.09 | 2.56 | 0.09 |
+| 9c | 0.33 | 0.74 | 1.61 | 69.3 | 2.67 | 0.10 | 2.56 | 0.09 |
+| 10 | 0.33 | 0.74 | 1.14 | 53.3 | 2.30 | 0.08 | 2.56 | 0.09 |
+| 99 | 2.33 | 52.7 | 1.24 | 1.29 | 2.82 | 0.11 | 2.56 | 0.09 |
 
-**Reading the ladder:** Model 2a improved Hz and internalized Fe relative to Model 1, but still leaves ~36 fg in the host at 44 h (inventory **R² = 0.612**). Model 2b (ladder default; Models 3–10 inherit it) uses a faster late `f_exp` after Fig. 5B’s 29 h break, still × remaining host, continuous at the join: DV Fe RMSE 15.89 → 2.56 (R² = 0.990), host ~5 fg at 44 h, Hz RMSE 11.63 → 5.32. The last gulp is still a little short. Hb stayed collapsed through Model 4 (lumen `Vmax` ≫ uptake). Shared `variable_dv_volume` did not move M1/M2 fg scores (amount-linear rates). Model 3 matches Model 2b: lag `s_PM(20 h) ≈ 0.41` of plateau is already enough enzyme to collapse DV Hb. Models 4a and 4b also match Model 3. Model 5 is the first step that moves Hb (χ²_red 37 → 4.4): assay Hb tracks inner-vesicle cargo while lumen Hb stays ~0. DV Fe is unchanged (same Model 2b internalized inventory). Model 6 clocks lysis with `s_PM(t)` so standing cargo is `v_up / (k · s_PM)` rather than `v_up / k` ([model6.md](models/model6.md)): Hb χ²_red 4.4 → 0.74. Model 7 splits Fe(III) aq ⇄ lip and crystallizes from the lipid pool at full literature `k_hz` (no `φ`). Hm barely moves (χ²_red 217 → 207). Model 8 puts `k_hz` on interfacial Fe only: Hm signed error flips from −2.88 to +2.60 fg (high, not drained). `K_xtal = 3δ/R = 0.08` from cited NLB radius and film thickness ([model8.md](models/model8.md)) — do not retune it. Model 9 scales that `v_hz` by growing crystal area ([model9.md](models/model9.md)): Hb and DV Fe stay at Model 8; Hm RMSE 3.31 → 1.14 (signed +2.60 → 0.00), Hz RMSE 4.10 → 2.30. Do not fit the `2/3` exponent. Model 10 is a **what-if** on the same ODEs ([model10.md](models/model10.md)): plateau `k_release` and `K_xtal` were chosen on **2a** and are not refit; on 2b plus the Model 6 clock they overshoot Hb (χ²_red 0.74 → 53). Ranked next *ladder* step if 2b’s last ~5 fg is still short: Garnie Fig. 5B Dd2 phases as `v_up` (0.9 then 4.8 fg/h), not a new `f_exp` `b`.
+**Reading the ladder:** Model 2a improved Hz and internalized Fe relative to Model 1, but still leaves ~36 fg in the host at 44 h (inventory **R² = 0.612**). Model 2b (ladder default; Models 3–9c inherit it) uses a faster late `f_exp` after Fig. 5B’s 29 h break, still × remaining host, continuous at the join: DV Fe RMSE 15.89 → 2.56 (R² = 0.990), host ~5 fg at 44 h, Hz RMSE 11.63 → 5.32. The last gulp is still a little short. Hb stayed collapsed through Model 4 (lumen `Vmax` ≫ uptake). Shared `variable_dv_volume` did not move M1/M2 fg scores (amount-linear rates). Model 3 matches Model 2b: lag `s_PM(20 h) ≈ 0.41` of plateau is already enough enzyme to collapse DV Hb. Models 4a and 4b also match Model 3. Model 5 is the first step that moves Hb (χ²_red 37 → 4.4): assay Hb tracks inner-vesicle cargo while lumen Hb stays ~0. DV Fe is unchanged (same Model 2b internalized inventory). Model 6 clocks lysis with `s_PM(t)` so standing cargo is `v_up / (k · s_PM)` rather than `v_up / k` ([model6.md](models/model6.md)): Hb χ²_red 4.4 → 0.74. Model 7 splits Fe(III) aq ⇄ lip and crystallizes from the lipid pool at full literature `k_hz` (no `φ`). Hm barely moves (χ²_red 217 → 207). Model 8 puts `k_hz` on interfacial Fe only: Hm signed error flips from −2.88 to +2.60 fg (high, not drained). `K_xtal = 3δ/R = 0.08` from cited NLB radius and film thickness ([model8.md](models/model8.md)) — do not retune it. Model 9 scales that `v_hz` by growing crystal area ([model9.md](models/model9.md)): Hb and DV Fe stay at Model 8; Hm RMSE 3.31 → 1.14 (signed +2.60 → 0.00), Hz RMSE 4.10 → 2.30. Models 9b (1/2) and 9c (1/3) test elongated crystal habit. Model 99 is a **what-if** on the same ODEs ([model99.md](models/model99.md)): plateau `k_release` and `K_xtal` were chosen on **2a** and are not refit; on 2b plus the Model 6 clock they overshoot Hb (χ²_red 0.74 → 53). Ranked next *ladder* step if 2b’s last ~5 fg is still short: Garnie Fig. 5B Dd2 phases as `v_up` (0.9 then 4.8 fg/h), not a new `f_exp` `b`.
 
 Code: [`haem_kinetics/components/fit_metrics.py`](../haem_kinetics/components/fit_metrics.py); `model.score_vs_experiment()`.
 
@@ -121,7 +129,7 @@ flowchart LR
 - Consumption rates are zero when their substrate is ≤ 0 (domain of the physical rate law). BDF defaults to `rtol=1e-8`, `atol=1e-12` so the **stated** ODEs are integrated accurately — not a change to the chemistry.
 - Total Fe must stay ≈ **106 fg/cell** without clipping. Negatives or drift mean investigate the model or the solve.
 - Integration defaults to SciPy **`BDF`**.
-- Lumen DV species are integrated in **M at variable `V_DV(t)`** (`variable_dv_volume`) and converted to fg/cell as `C·V_DV(t)`. `constants.vol_dv = 1 fL` is the **reference** volume for the init API and PaxDB amount `n_E = [E]_1fL · 1 fL`. Init `[0.018, 0, 0, 0.36]` stays 1 fL-reference M so the fg seed is unchanged; `run()` rescales lumen species to true M at `V(t=0)`. Model 5–10 inner-vesicle cargo (`conc_hb_htv`) is an **amount** (`AMOUNT_SPECIES`): inside the DV but not pHrodo aqueous lumen, encoded as M at `V_ref`, not diluted by `dV_DV/dt`, converted as `C·V_ref`. The current lumen schedule is Garnie Dd2 (`variable_dv_volume_L`).
+- Lumen DV species are integrated in **M at variable `V_DV(t)`** (`variable_dv_volume`) and converted to fg/cell as `C·V_DV(t)`. `constants.vol_dv = 1 fL` is the **reference** volume for the init API and PaxDB amount `n_E = [E]_1fL · 1 fL`. Init `[0.018, 0, 0, 0.36]` stays 1 fL-reference M so the fg seed is unchanged; `run()` rescales lumen species to true M at `V(t=0)`. Model 5–99 inner-vesicle cargo (`conc_hb_htv`) is an **amount** (`AMOUNT_SPECIES`): inside the DV but not pHrodo aqueous lumen, encoded as M at `V_ref`, not diluted by `dV_DV/dt`, converted as `C·V_ref`. The current lumen schedule is Garnie Dd2 (`variable_dv_volume_L`).
 - `[O2−]` = 0 (SOD) → Fe(III) reduction is off.
 - Parameters: [`haem_kinetics/components/constants.py`](../haem_kinetics/components/constants.py)
 - Experiment tables: [`experimental_data.py`](../haem_kinetics/components/experimental_data.py) ([garnie_fractionation.md](garnie_fractionation.md))
@@ -131,22 +139,22 @@ flowchart LR
 | Symbol | Code / meaning |
 |--------|----------------|
 | `t` | Time in **minutes** from 16 h post-invasion |
-| `[Hb]_HTV` | `conc_hb_htv` — Model 5–10 inner-vesicle cargo already in the DV (amount as M at `V_ref`; not pHrodo lumen) |
-| `[Hb]_DV` | `conc_hb_dv` — protease-accessible lumen Hb as haem-equivalents (M); Model 4a: native tetramer; 4b/5–10: lumen Hb |
+| `[Hb]_HTV` | `conc_hb_htv` — Model 5–99 inner-vesicle cargo already in the DV (amount as M at `V_ref`; not pHrodo lumen) |
+| `[Hb]_DV` | `conc_hb_dv` — protease-accessible lumen Hb as haem-equivalents (M); Model 4a: native tetramer; 4b/5–99: lumen Hb |
 | `[Hb]_globin` | `conc_hb_globin` — Model 4a nicked globin (haem still protein-bound) |
 | `[Hb]_tet` | `[Hb]_DV` / 4 — tetramer basis for MM |
 | `[Hb]_RBC` | `conc_hb_rbc` — remaining host Hb (M, RBC basis) |
 | `[Fe3]_aq`, `[Fe3]_lip` | Model 7–10 aqueous and bulk-lipid Fe(III) (lumen-basis M) |
-| `[Fe3]_xtal` | Model 8–10 interfacial / crystal-competent Fe(III); assay Hm = aq + lip + xtal |
+| `[Fe3]_xtal` | Model 8–99 interfacial / crystal-competent Fe(III); assay Hm = aq + lip + xtal |
 | `v_up` | Uptake rate into DV (M haem-eq / min on `V_DV`) |
 | `v_dig` | Digestion / haem-release rate (M haem-eq / min) |
 | `v_ox` | Fe(II)→Fe(III) oxidation rate |
 | `v_hz` | Haemozoin formation rate |
-| `f_exp(t)` | Empirical `a · b · exp(b · t)` uptake; first-order remaining host. Model 2a = one phase; Model 2b / 3–10 = two-phase at Fig. 5B 29 h. Fit to cumulative **fractionation** Fe, not pHrodo |
+| `f_exp(t)` | Empirical `a · b · exp(b · t)` uptake; first-order remaining host. Model 2a = one phase; Model 2b / 3–9c = two-phase at Fig. 5B 29 h. Fit to cumulative **fractionation** Fe, not pHrodo |
 | `a_e, b_e, b_l` | Model 2b two-phase `f_exp` (still × remaining host); break at Fig. 5B 29 h; `a_l` from continuity of `f_exp` at the join |
-| `k_release` | Model 5 constant inner-vesicle lysis (Klemba `t½` < 20 min bound). Models 6–9: `k_htv_release · s_PM(t)`. Model 10: that clock with a fitted plateau scale |
+| `k_release` | Model 5 constant inner-vesicle lysis (Klemba `t½` < 20 min bound). Models 6–9c: `k_htv_release · s_PM(t)`. Model 99: that clock with a fitted plateau scale |
 | `V_DV(t)` | Variable DV lumen (`variable_dv_volume`); current schedule: Garnie Dd2 Gompertz then linear collapse |
-| `s_PM(t)` | Garnie Fig. 3 relative PM amount (Model 3–10 enzyme amount; Model 6–10 also lysis); plateau 40–44 h = 1 |
+| `s_PM(t)` | Garnie Fig. 3 relative PM amount (Model 3–9c enzyme amount; Model 6–9c also lysis); plateau 40–44 h = 1 |
 
 Host mass balance:
 
@@ -242,8 +250,8 @@ Legacy imports: `from haem_kinetics.models.legacy import LegacyModel3` (etc.).
 3. **NF54 digits** in `experimental_data.py` may not match Garnie 2025; prefer Dd2. `s_PM` itself is from NF54 Fig. 3 blots (the published PM time course).
 4. Peptide `kcat`/`Km` (Banerjee/Luker; Ramjee) applied to DV Hb is an approximation — see [`enzyme_kinetics.md`](enzyme_kinetics.md).
 5. ppm are Tao 2014 Dd2 whole-organism (not DV-specific).
-6. Model 2b / 3–10 `f_exp` is empirical (cumulative fractionation Fe, first-order remaining host, two-phase at Fig. 5B 29 h, continuous at the join), not cytostome kinetics and not pHrodo Fig. 2C ([model2.md](models/model2.md), [garnie_fractionation.md](garnie_fractionation.md)). Model 2a is the one-phase comparison. Do **not** retune `a, b` in Model 10.
-7. **Late Hz on this ladder is mostly inventory, not crystal lag.** With Model 2b, ~5 fg remains in the host at 44 h (DV Fe RMSE 2.56). Ranked next ladder step if that last gulp is still short: Garnie Fig. 5B Dd2 phases as `v_up` (0.9 then 4.8 fg/h); see [model10.md](models/model10.md#next-mechanisms-ranked-not-this-page).
+6. Model 2b / 3–9c `f_exp` is empirical (cumulative fractionation Fe, first-order remaining host, two-phase at Fig. 5B 29 h, continuous at the join), not cytostome kinetics and not pHrodo Fig. 2C ([model2.md](models/model2.md), [garnie_fractionation.md](garnie_fractionation.md)). Model 2a is the one-phase comparison. Do **not** retune `a, b` in Model 99.
+7. **Late Hz on this ladder is mostly inventory, not crystal lag.** With Model 2b, ~5 fg remains in the host at 44 h (DV Fe RMSE 2.56). Ranked next ladder step if that last gulp is still short: Garnie Fig. 5B Dd2 phases as `v_up` (0.9 then 4.8 fg/h); see [model99.md](models/model99.md#next-mechanisms-ranked-not-this-page).
 
 ---
 

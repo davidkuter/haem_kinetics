@@ -1,41 +1,94 @@
-"""Model 10: what-if retune of Model 9 knobs vs Garnie Dd2.
+"""Model 10: Model 9a + full amount encoding for Fe species.
 
-Not a mechanistic ladder step. k_release and K_xtal are chosen so the
-existing ODEs can be compared to the assay; they are not Klemba or NLB
-geometry. f_exp stays at the Model 2b schedule (observed DV-inventory
-delivery) — do not retune a, b here.
+All haem-iron species downstream of Hb_dv are amount-encoded (not concentrated
+by aqueous lumen collapse). The DV volume schedule affects only Hb_dv (the
+protease-accessible lumen pool).
 
-Inherits Model 9 crystal-area growth. Plateau k_htv_release is scaled;
-Model 6 still multiplies by s_PM(t), so k_10(t) = 0.4774 · k_Klemba · s_PM(t).
-Do not refit the scale or K_xtal.
+Mechanistic basis:
+- NLBs are lipid droplets that don't shrink with aqueous lumen (Jackson 2004)
+- Hz crystals are solid, excluded from pHrodo volume (Garnie 2025)
+- Fe(II) and Fe(III) quickly equilibrate with NLBs / are bound to membranes,
+  so effectively don't see the aqueous volume collapse
+
+This tests whether the late-phase Hm/Hb dip in Model 9a is caused by the
+concentration effect during DV collapse.
 """
-import math
-
-from haem_kinetics.models.model9 import Model9
+from haem_kinetics.models.model9a import Model9a
 
 
-# Least-squares scale so (then) Model 7 Hb / s matches Garnie Dd2 (n_HTV ∝ 1/k).
-# Chosen on the Model 2a inventory; not refit. Plateau t½ ≈ 41.9 min
-# (Klemba bound is t½ < 20 min).
-HTV_RELEASE_K_SCALE = 0.4774
-
-# Grid of K_xtal with that k_release: 0.10 gives the lowest
-# Hm χ²_red among {0.06, 0.08, 0.10, 0.12, 0.16, 0.20, 0.24}.
-K_XTAL_WHATIF = 0.10
-
-
-class Model10(Model9):
+class Model10(Model9a):
     """
-    Model 9 chemistry with Garnie-tuned k_release and K_xtal.
+    Model 9a + amount encoding for all Fe species.
 
-    Diagnostic only: does the interfacial + area topology have enough freedom
-    to approach Dd2 Hb and Hm if those two knobs are freed? Uptake stays
-    Model 2b f_exp. Lysis still follows s_PM(t) from Model 6. Area growth
-    is inherited from Model 9.
+    Fe2, all Fe(III) species, and Hz are amount-encoded (not concentrated
+    by aqueous lumen collapse). Only Hb_dv remains a true lumen species.
+    This removes the artificial late-phase concentration spike.
     """
+
+    AMOUNT_SPECIES = [
+        'conc_hb_htv',       # inner-vesicle cargo (already amount in Model 5+)
+        'conc_fe2pp',        # Fe(II) — bound / quickly partitions
+        'conc_fe3pp_aq',     # aqueous Fe(III)
+        'conc_fe3pp_lip',    # bulk NLB lipid
+        'conc_fe3pp_xtal',   # NLB-water interface
+        'conc_hz',           # haemozoin crystals
+    ]
 
     def __init__(self, model_name: str = 'Model 10'):
         super().__init__(model_name=model_name)
-        k_klemba = math.log(2) / 20.0
-        self.const.k_htv_release = k_klemba * HTV_RELEASE_K_SCALE
-        self.const.K_xtal = K_XTAL_WHATIF
+
+    def _vol_ratio(self, t: float) -> float:
+        """Ratio V_DV(t) / V_ref for lumen→amount interface."""
+        return self._vol_dv(t) / self.const.vol_dv
+
+    def _n_hz_amount(self) -> float:
+        """Hz amount (mol) from the amount-encoded species."""
+        return self._nonneg(self.initial_values['conc_hz']) * self.const.vol_dv
+
+    def _hz_area_factor(self, t: float) -> float:
+        """Area factor for crystal-area growth.
+
+        For Model 10, Hz is an amount species (M at V_ref), so the amount is
+        conc_hz * V_ref, not conc_hz * V_DV(t).
+        """
+        n_start = self._n_hz_start()
+        n_hz = self._n_hz_amount()
+        if n_start <= 0.0 or n_hz <= 0.0:
+            return 0.0
+        return (n_hz / n_start) ** self.AREA_EXPONENT
+
+    def _d_fe2pp(self, t):
+        """Fe(II) derivative — no dilution (amount species).
+        
+        Fe2 is produced by digestion (from Hb_dv lumen pool). The digestion
+        rate is scaled by V_DV(t)/V_ref to convert from lumen to amount basis,
+        preserving mass balance.
+        """
+        fe2 = self._nonneg(self.initial_values['conc_fe2pp'])
+        vol_ratio = self._vol_ratio(t)
+        form = self._hb_removal(t) * vol_ratio + (
+            self.const.k_fe3pp_red
+            * self._nonneg(self.initial_values['conc_fe3pp_aq'])
+            * self.const.conc_supoxy
+        )
+        return form - self._ox_rate()  # No dilution
+
+    def _d_fe3pp_aq(self, t):
+        """Aqueous Fe(III) derivative — no dilution (amount species)."""
+        aq = self._nonneg(self.initial_values['conc_fe3pp_aq'])
+        remove = (
+            self.const.k_fe3pp_red * aq * self.const.conc_supoxy
+        ) + self._exchange_rate()
+        return self._ox_rate() - remove  # No dilution
+
+    def _d_fe3pp_lip(self, t):
+        """Lipid Fe(III) derivative — no dilution (amount species)."""
+        return self._exchange_rate() - self._lip_xtal_exchange()
+
+    def _d_fe3pp_xtal(self, t):
+        """Interfacial Fe(III) derivative — no dilution (amount species)."""
+        return self._lip_xtal_exchange() - self._hz_rate(t)
+
+    def _d_hz(self, t):
+        """Hz derivative — no dilution (amount species)."""
+        return self._hz_rate(t)

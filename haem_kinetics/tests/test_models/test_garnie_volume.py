@@ -23,8 +23,11 @@ from haem_kinetics.models.model5 import Model5
 from haem_kinetics.models.model6 import Model6
 from haem_kinetics.models.model7 import Model7
 from haem_kinetics.models.model8 import Model8
-from haem_kinetics.models.model9 import Model9
+from haem_kinetics.models.model9a import Model9a
+from haem_kinetics.models.model9b import Model9b
+from haem_kinetics.models.model9c import Model9c
 from haem_kinetics.models.model10 import Model10
+from haem_kinetics.models.model99 import Model99
 
 
 def test_garnie_dd2_vol_matches_reconstructed_means():
@@ -211,11 +214,11 @@ def test_model7_scores_hm_as_aq_plus_lip():
     assert abs(model.fit_metrics['DV_Fe']['rmse'] - alt['DV_Fe']['rmse']) < 1e-12
 
 
-def test_model10_whatif_overrides_and_conserves():
+def test_model99_whatif_overrides_and_conserves():
     import math
-    from haem_kinetics.models.model10 import HTV_RELEASE_K_SCALE, K_XTAL_WHATIF
+    from haem_kinetics.models.model99 import HTV_RELEASE_K_SCALE, K_XTAL_WHATIF
 
-    model = Model10()
+    model = Model99()
     assert model.const.k_htv_release < math.log(2) / 20.0
     assert abs(model.const.k_htv_release - (math.log(2) / 20.0) * HTV_RELEASE_K_SCALE) < 1e-12
     assert abs(model.const.K_xtal - K_XTAL_WHATIF) < 1e-15
@@ -226,8 +229,8 @@ def test_model10_whatif_overrides_and_conserves():
     _assert_seed_fg_and_total_fe(model)
 
 
-def test_model9_preserves_seed_fg_and_total_fe():
-    model = Model9()
+def test_model9a_preserves_seed_fg_and_total_fe():
+    model = Model9a()
     model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
     _assert_seed_fg_and_total_fe(model)
     assert 'conc_fe3pp_xtal' in model.concentrations.columns
@@ -235,8 +238,8 @@ def test_model9_preserves_seed_fg_and_total_fe():
     assert (model.concentrations['conc_hb_assay'] - assay).abs().max() < 1e-9
 
 
-def test_model9_area_factor_is_one_at_seed():
-    model = Model9()
+def test_model9a_area_factor_is_one_at_seed():
+    model = Model9a()
     t0 = 0.0
     y0 = model._prepare_y0([0.018, 0.0, 0.0, 0.36], t0=t0)
     model._set_initial_conc(init=y0)
@@ -244,6 +247,39 @@ def test_model9_area_factor_is_one_at_seed():
     model.initial_values['conc_fe3pp_xtal'] = xtal
     assert abs(model._hz_area_factor(t0) - 1.0) < 1e-12
     assert abs(model._hz_rate(t0) - model.const.k_hz * xtal) < 1e-15
+
+
+def test_model9b_preserves_seed_fg_and_total_fe():
+    model = Model9b()
+    model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    _assert_seed_fg_and_total_fe(model)
+    assert model.AREA_EXPONENT == 0.5
+
+
+def test_model9c_preserves_seed_fg_and_total_fe():
+    model = Model9c()
+    model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    _assert_seed_fg_and_total_fe(model)
+    assert abs(model.AREA_EXPONENT - 1.0 / 3.0) < 1e-15
+
+
+def test_model10_preserves_seed_fg_and_total_fe():
+    model = Model10()
+    model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    _assert_seed_fg_and_total_fe(model)
+    assert 'conc_fe3pp_xtal' in model.concentrations.columns
+
+
+def test_model10_amount_species_include_all_fe():
+    model = Model10()
+    assert 'conc_hb_htv' in model.AMOUNT_SPECIES
+    assert 'conc_fe2pp' in model.AMOUNT_SPECIES
+    assert 'conc_fe3pp_aq' in model.AMOUNT_SPECIES
+    assert 'conc_fe3pp_lip' in model.AMOUNT_SPECIES
+    assert 'conc_fe3pp_xtal' in model.AMOUNT_SPECIES
+    assert 'conc_hz' in model.AMOUNT_SPECIES
+    # Only Hb_dv remains a lumen species
+    assert 'conc_hb_dv' not in model.AMOUNT_SPECIES
 
 
 def test_model8_preserves_seed_fg_and_total_fe():
