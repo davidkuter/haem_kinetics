@@ -13,6 +13,13 @@ from haem_kinetics.models.model9a import Model9a
 from haem_kinetics.models.model9b import Model9b
 from haem_kinetics.models.model9c import Model9c
 from haem_kinetics.models.model10 import Model10
+from haem_kinetics.models.model11 import Model11
+from haem_kinetics.models.model12a import Model12a
+from haem_kinetics.models.model12b import Model12b
+from haem_kinetics.models.model12c import Model12c
+from haem_kinetics.models.model13 import Model13
+from haem_kinetics.models.model14a import Model14a
+from haem_kinetics.models.model14b import Model14b
 from haem_kinetics.models.model99 import Model99
 from haem_kinetics.models.degradation import Degradation
 
@@ -38,6 +45,13 @@ runs = [
     ('examples/model9b.png', Model9b, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model9c.png', Model9c, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model10.png', Model10, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model11.png', Model11, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model12a.png', Model12a, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model12b.png', Model12b, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model12c.png', Model12c, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model13.png', Model13, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model14a.png', Model14a, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model14b.png', Model14b, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model99.png', Model99, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/degradation.png', Degradation, [0.018, 0.0], {}),
 ]

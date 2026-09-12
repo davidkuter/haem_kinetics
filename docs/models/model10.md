@@ -1,7 +1,7 @@
 # Model 10
 
 **Code:** [`haem_kinetics/models/model10.py`](../../haem_kinetics/models/model10.py)  
-**Up:** [Model index](../models.md) · **Prev:** [Model 9](model9.md) · **Next:** [Model 99](model99.md) (what-if)
+**Up:** [Model index](../models.md) · **Prev:** [Model 9](model9.md) · **Next:** [Model 12](model12.md)
 
 Model 9a chemistry (crystal-area growth, sphere 2/3) with **amount encoding for all Fe species**. Tests whether making Fe2, Fe3, and Hz amount-encoded (instead of lumen species) changes the late-phase dynamics.
 

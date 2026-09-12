@@ -3,6 +3,7 @@ import math
 
 import pandas as pd
 
+from haem_kinetics.components.constants import Constants
 from haem_kinetics.models.helpers import (
     garnie_dd2_vol_dv_fl,
     garnie_dd2_vol_dv_L,
@@ -27,6 +28,12 @@ from haem_kinetics.models.model9a import Model9a
 from haem_kinetics.models.model9b import Model9b
 from haem_kinetics.models.model9c import Model9c
 from haem_kinetics.models.model10 import Model10
+from haem_kinetics.models.model12a import Model12a
+from haem_kinetics.models.model12b import Model12b
+from haem_kinetics.models.model12c import Model12c
+from haem_kinetics.models.model13 import Model13
+from haem_kinetics.models.model14a import Model14a
+from haem_kinetics.models.model14b import Model14b
 from haem_kinetics.models.model99 import Model99
 
 
@@ -280,6 +287,170 @@ def test_model10_amount_species_include_all_fe():
     assert 'conc_hz' in model.AMOUNT_SPECIES
     # Only Hb_dv remains a lumen species
     assert 'conc_hb_dv' not in model.AMOUNT_SPECIES
+
+
+def test_model12a_preserves_seed_fg_and_total_fe():
+    model = Model12a()
+    model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    _assert_seed_fg_and_total_fe(model)
+    assert 'conc_fe3pp_aq' in model.concentrations.columns
+    assert 'conc_fe3pp_lip' in model.concentrations.columns
+
+
+def test_model12a_hz_forms_from_aqueous_not_lipid():
+    """Myburgh Model 3: crystallisation is first-order in aqueous hematin only."""
+    model = Model12a()
+    model.initial_values['conc_fe3pp_aq'] = 0.0
+    model.initial_values['conc_fe3pp_lip'] = 1e-3
+    assert model._hz_rate() == 0.0  # lipid pool is a buffer, not the substrate
+    model.initial_values['conc_fe3pp_aq'] = 2e-6
+    assert abs(model._hz_rate() - model.const.k_hz * 2e-6) < 1e-18
+    # The lipid derivative carries no crystallisation sink (exchange only).
+    model.initial_values['conc_fe3pp_lip'] = 0.0
+    assert abs(model._d_fe3pp_lip(0.0) - model._exchange_rate()) < 1e-18
+
+
+def test_model12b_uptake_is_myburgh_exponential():
+    model = Model12b()
+    t = 600.0
+    t_abs = t + model.PARASITE_T0_MIN
+    mole_rate = (
+        model.UPTAKE_A_FG * 1e-15 * model.UPTAKE_B_PER_MIN
+        * math.exp(model.UPTAKE_B_PER_MIN * t_abs) / model.MW_FE_G_PER_MOL
+    )
+    expected = mole_rate / model._vol_dv(t)
+    # Rate magnitude is independent of the remaining host (not f_exp × host)...
+    for host in (0.02, 0.001):
+        model.initial_values[model.HOST_KEY] = host
+        assert abs(model._uptake_dv(t) - expected) < 1e-24
+    # ...but truncates when the finite host is spent (conserving; domain of the
+    # physical uptake — no Hb left to internalise).
+    model.initial_values[model.HOST_KEY] = 0.0
+    assert model._uptake_dv(t) == 0.0
+
+
+def _assert_total_fe_conserved(model):
+    """Host+DV Fe is conserved even when the uptake drains the host."""
+    df = model.concentrations
+    tot = df[[c for c in df.columns
+              if c.startswith('conc_') and c not in (
+                  'conc_hb_assay', 'conc_hb_dv_obs', 'conc_fe3pp_free',
+              )]].sum(axis=1)
+    budget = model.const.total_fe_fg_cell
+    assert abs(float(tot.iloc[0]) - budget) < 0.5
+    assert abs(float(tot.iloc[-1]) - budget) < 0.5
+
+
+def _assert_no_late_cliff(model):
+    """Myburgh's constant [Hb_RBC]: monotonic late phase, no finite-host cliff."""
+    df = model.concentrations.copy()
+    df['hm'] = df['conc_fe3pp_aq'] + df['conc_fe3pp_lip'] + df.get('conc_fe2pp', 0.0)
+    df['hb'] = df['conc_hb_htv'] + df['conc_hb_dv']
+    times = df.index.to_numpy(dtype=float)
+    late = df[times >= 40.0]
+    # No sharp drop in the last 4 h: 44 h stays within 5% of the 40-44 h peak.
+    for col in ('hb', 'hm', 'conc_hz'):
+        peak = float(late[col].max())
+        end = float(late[col].iloc[-1])
+        assert end > 0.95 * peak, f'{col}: late cliff {end} vs peak {peak}'
+
+
+def test_model12b_conserves_total_fe_and_exhausts_host():
+    """12b keeps the conserving ladder: Myburgh's over-delivering uptake drains
+    the finite host (~0 by 44 h), the honest late cliff. Contrast 12c."""
+    model = Model12b()
+    model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    _assert_total_fe_conserved(model)
+    host = model.concentrations['conc_hb_rbc']
+    assert float(host.min()) > -0.01
+    assert float(host.iloc[-1]) < 0.5
+
+
+def test_model12c_constant_volume_and_enzyme():
+    model = Model12c()
+    assert model.variable_dv_volume is False
+    assert model._vol_dv(0.0) == model.const.vol_dv
+    assert model._vol_dv(1700.0) == model.const.vol_dv
+    # Constant [E]: no s_PM schedule, so identical early vs late.
+    e_early = model._enzyme_conc('plm_2', 100.0)
+    e_late = model._enzyme_conc('plm_2', 1600.0)
+    assert abs(e_early - e_late) < 1e-30
+    assert abs(e_early - model.const.conc_enzymes['plm_2']) < 1e-30
+
+
+def test_model12c_constant_host_no_cliff():
+    model = Model12c()
+    model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    host = model.concentrations['conc_hb_rbc']
+    assert abs(float(host.max()) - float(host.min())) < 1e-9
+    _assert_no_late_cliff(model)
+
+
+def test_model13_uses_upper_range_host_budget():
+    """Model 13 = Model 12b uptake on an upper-range MCHC Fe budget.
+
+    The 106 fg default is built from population-mean MCHC (34 g/dL); Model 13
+    uses the clinical upper bound (36 g/dL), a larger but cited host pool.
+    """
+    model = Model13()
+    assert model.MCHC_G_PER_DL == 36.0
+    # Larger host pool than the mean-cell budget, but still same uptake law.
+    assert model._full_hb_rbc_m() > Constants.compute_conc_hb_rcb()
+    assert model.const.total_fe_fg_cell > 110.0
+    # Uptake is inherited from 12b (Myburgh exponential): host-independent
+    # magnitude, truncating only when the host is spent.
+    model.initial_values[model.HOST_KEY] = 0.02
+    t = 600.0
+    rate_full = model._uptake_dv(t)
+    model.initial_values[model.HOST_KEY] = 0.001
+    assert abs(model._uptake_dv(t) - rate_full) < 1e-30
+    model.initial_values[model.HOST_KEY] = 0.0
+    assert model._uptake_dv(t) == 0.0
+
+
+def test_model13_no_cliff_host_not_exhausted():
+    """Upper-range budget keeps the host from emptying, so Myburgh's uptake
+    never stops dead and the standing Hb/Hm pools do not collapse at 44 h."""
+    model = Model13()
+    model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    _assert_total_fe_conserved(model)  # conserved at the model's own ~112 fg budget
+    host = model.concentrations['conc_hb_rbc']
+    # Contrast 12b (host → 0, cliff): here the host is drawn down but survives.
+    assert float(host.min()) > 0.3
+    _assert_no_late_cliff(model)
+
+
+def test_model14a_release_decoupled_from_spm():
+    """14a: inner-vesicle lysis is the constant Klemba rate, not gated by
+    plasmepsin amount — so release no longer collapses early and the 24-26 h
+    assay-Hb hump is removed."""
+    model = Model14a()
+    early = model._k_release(100.0)
+    late = model._k_release(1600.0)
+    assert early == late == model.const.k_htv_release
+    model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    _assert_total_fe_conserved(model)
+    _assert_no_late_cliff(model)
+    # No spurious early hump: 26 h assay Hb no longer exceeds the 44 h value
+    # (contrast Model 13, where low early s_PM piled cargo up to ~2.9 fg).
+    df = model.concentrations
+    hb26 = float(df.iloc[(df.index - 26.0).to_series().abs().values.argmin()]['conc_hb_assay'])
+    hb44 = float(df.iloc[(df.index - 44.0).to_series().abs().values.argmin()]['conc_hb_assay'])
+    assert hb26 < hb44
+
+
+def test_model14b_slower_constant_release_than_14a():
+    """14b: same decoupling as 14a but a slower provisional lysis t½ (30 min),
+    a larger standing pool that fits early but overshoots late."""
+    model = Model14b()
+    assert model.HTV_LYSIS_T_HALF_MIN == 30.0
+    r = model._k_release(500.0)
+    assert r == model._k_release(1500.0)  # constant, decoupled from s_PM
+    assert abs(r - math.log(2.0) / 30.0) < 1e-12
+    # Slower than 14a's Klemba rate (t½ 20 min) → larger standing HTV pool.
+    assert r < Model14a()._k_release(500.0)
+    model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    _assert_total_fe_conserved(model)
 
 
 def test_model8_preserves_seed_fg_and_total_fe():
