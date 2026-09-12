@@ -1,7 +1,7 @@
 # Model 14 (14a / 14b)
 
 **Code:** [`model14a.py`](../../haem_kinetics/models/model14a.py) · [`model14b.py`](../../haem_kinetics/models/model14b.py)  
-**Up:** [Model index](../models.md) · **Prev:** [Model 13](model13.md) · **Next:** [Model 99](model99.md) (what-if)
+**Up:** [Model index](../models.md) · **Prev:** [Model 13](model13.md) · **Next:** [Model 15](model15.md)
 
 **Addressing Model 13's early assay-Hb hump by decoupling inner-vesicle release from plasmepsin amount.** Both variants make the same mechanistic change from Model 13 — release is no longer `∝ s_PM(t)` — and differ only in the lysis timescale. Together they bracket the constant-rate hypothesis and show that inner-vesicle lysis must *accelerate* through development.
 

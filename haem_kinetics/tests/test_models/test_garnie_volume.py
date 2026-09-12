@@ -34,6 +34,8 @@ from haem_kinetics.models.model12c import Model12c
 from haem_kinetics.models.model13 import Model13
 from haem_kinetics.models.model14a import Model14a
 from haem_kinetics.models.model14b import Model14b
+from haem_kinetics.models.model15a import Model15a
+from haem_kinetics.models.model15b import Model15b
 from haem_kinetics.models.model99 import Model99
 
 
@@ -449,6 +451,45 @@ def test_model14b_slower_constant_release_than_14a():
     assert abs(r - math.log(2.0) / 30.0) < 1e-12
     # Slower than 14a's Klemba rate (t½ 20 min) → larger standing HTV pool.
     assert r < Model14a()._k_release(500.0)
+    model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    _assert_total_fe_conserved(model)
+
+
+def test_model15a_softer_release_keeps_late_klemba_rate():
+    """15a: constitutive + s_PM mix. Late (s_PM=1) matches Model 13; early
+    release is faster than Model 13's blot-throttled rate."""
+    a = Model15a()
+    m13 = Model13()
+    assert a.RELEASE_CONSTITUTIVE == 0.5
+        # Late: s_PM ≈ 1 so 15a and 13 share nearly the same Klemba rate.
+    t_late = (42.0 - 16.0) * 60.0
+    late_13 = m13._k_release(t_late)
+    assert abs(a._k_release(t_late) - late_13) < 0.02 * late_13
+    # Early blot: faster than 13 (less throttling), slower than 14a's constant.
+    t_early = 100.0
+    assert a._k_release(t_early) > m13._k_release(t_early)
+    assert a._k_release(t_early) < Model14a()._k_release(t_early)
+    a.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
+    _assert_total_fe_conserved(a)
+    _assert_no_late_cliff(a)
+
+
+def test_model15b_elliott_gate_off_before_24h():
+    """15b: Myburgh uptake is gated by Elliott's 24–30 h cytostome window."""
+    from haem_kinetics.models.helpers import elliott_cytostome_maturity
+    model = Model15b()
+    model.initial_values[model.HOST_KEY] = 0.02
+    t20 = (20.0 - 16.0) * 60.0
+    t26 = (26.0 - 16.0) * 60.0
+    t35 = (35.0 - 16.0) * 60.0
+    assert elliott_cytostome_maturity(t20) == 0.0
+    assert model._uptake_dv(t20) == 0.0
+    assert 0.0 < elliott_cytostome_maturity(t26) < 1.0
+    assert elliott_cytostome_maturity(t35) == 1.0
+    # After 30 h the rate is Model 13's Myburgh law (same host, same t).
+    m13 = Model13()
+    m13.initial_values[m13.HOST_KEY] = 0.02
+    assert abs(model._uptake_dv(t35) - m13._uptake_dv(t35)) < 1e-30
     model.run(t=[0, 1700], init=[0.018, 0.0, 0.0, 0.36], t_eval=range(0, 1700, 20))
     _assert_total_fe_conserved(model)
 

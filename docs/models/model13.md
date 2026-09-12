@@ -53,7 +53,7 @@ Mean signed error: Hb +0.52, Hm +0.01, Hz +4.99, DV Fe +5.52.
 
 3. **The early Hb hump is a separate, smaller issue.** Assay Hb peaks ~2.9 fg near 26 h vs experiment ~1.9 because `n_HTV ≈ v_up/(k_release·s_PM)` and early `s_PM` is low (Garnie's blots: few plasmepsins early), so release lags and cargo piles up. It is decoupled from the terminal behaviour and drives most of the Hb χ².
 
-**Interpretation.** The 44 h cliff was an artifact of scoring an average-106-fg cell against data whose DV inventory already equals that whole average budget. Correcting the host budget to the upper reference bound — the value the data implies — removes the cliff cleanly. What remains (Hz ~5 fg high, the early Hb hump) is not about the budget: the first is Myburgh's exponential over-delivering, the second is the low-early-`s_PM` release clock. The early hump is taken up by [Model 14](model14.md) (decoupling inner-vesicle lysis from the plasmepsin blot).
+**Interpretation.** The 44 h cliff was an artifact of scoring an average-106-fg cell against data whose DV inventory already equals that whole average budget. Correcting the host budget to the upper reference bound — the value the data implies — removes the cliff cleanly. What remains (Hz ~5 fg high, the early Hb hump) is not about the budget: the first is Myburgh's exponential over-delivering, the second is the low-early-`s_PM` release clock. The early *amount* offset (shape unchanged) is taken up by [Model 15](model15.md). [Model 14](model14.md) instead decoupled release from the blot and flattened the trajectory.
 
 ---
 

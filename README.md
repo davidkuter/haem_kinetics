@@ -24,9 +24,11 @@ Detailed pages (with process schematics):
 | Model 8 | [docs/models/model8.md](docs/models/model8.md) |
 | Model 9a / 9b / 9c | [docs/models/model9.md](docs/models/model9.md) |
 | Model 10 | [docs/models/model10.md](docs/models/model10.md) |
+| Model 11 | [docs/models/model11.md](docs/models/model11.md) |
 | Model 12a / 12b / 12c | [docs/models/model12.md](docs/models/model12.md) |
 | Model 13 | [docs/models/model13.md](docs/models/model13.md) |
 | Model 14a / 14b | [docs/models/model14.md](docs/models/model14.md) |
+| Model 15a / 15b | [docs/models/model15.md](docs/models/model15.md) |
 | Model 99 (what-if) | [docs/models/model99.md](docs/models/model99.md) |
 | Legacy 2–6 | [docs/models/legacy/](docs/models/legacy/README.md) |
 

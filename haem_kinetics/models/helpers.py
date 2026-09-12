@@ -109,6 +109,34 @@ F_EXP_BREAK_AGE_H = 29.0
 F_EXP_PARASITE_T0_H = 16.0
 F_EXP_BREAK_T_MIN = (F_EXP_BREAK_AGE_H - F_EXP_PARASITE_T0_H) * 60.0
 
+# Elliott et al., PNAS (2008) 105:2463 — cytostomal SHV pathway "increases its
+# contribution to total hemoglobin uptake" once the parasite is a trophozoite
+# (defined there as 24–30 h post-invasion). Independent of Garnie Fe inventory.
+ELLIOTT_CYTOSTOME_START_AGE_H = 24.0
+ELLIOTT_CYTOSTOME_MATURE_AGE_H = 30.0
+
+
+def elliott_cytostome_maturity(
+    t_min: float,
+    parasite_t0_h: float = F_EXP_PARASITE_T0_H,
+    start_age_h: float = ELLIOTT_CYTOSTOME_START_AGE_H,
+    mature_age_h: float = ELLIOTT_CYTOSTOME_MATURE_AGE_H,
+) -> float:
+    """Smooth 0→1 cytostomal-delivery maturity from Elliott 2008 (not Garnie).
+
+    Hermite smoothstep over the 24–30 h trophozoite window when the cytostome
+    becomes a major continuous uptake path. Before 24 h the gate is 0: ring
+    uptake is Elliott's one-shot Big Gulp, not Myburgh's continuous exponential.
+    After 30 h the gate is 1 (full Myburgh rate). No free amplitude.
+    """
+    age_h = parasite_t0_h + t_min / 60.0
+    if age_h <= start_age_h:
+        return 0.0
+    if age_h >= mature_age_h:
+        return 1.0
+    x = (age_h - start_age_h) / (mature_age_h - start_age_h)
+    return x * x * (3.0 - 2.0 * x)
+
 
 def two_phase_a_late(
     a_early: float,

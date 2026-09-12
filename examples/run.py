@@ -20,6 +20,8 @@ from haem_kinetics.models.model12c import Model12c
 from haem_kinetics.models.model13 import Model13
 from haem_kinetics.models.model14a import Model14a
 from haem_kinetics.models.model14b import Model14b
+from haem_kinetics.models.model15a import Model15a
+from haem_kinetics.models.model15b import Model15b
 from haem_kinetics.models.model99 import Model99
 from haem_kinetics.models.degradation import Degradation
 
@@ -52,6 +54,8 @@ runs = [
     ('examples/model13.png', Model13, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model14a.png', Model14a, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model14b.png', Model14b, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model15a.png', Model15a, [0.018, 0.0, 0.0, 0.36], {}),
+    ('examples/model15b.png', Model15b, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/model99.png', Model99, [0.018, 0.0, 0.0, 0.36], {}),
     ('examples/degradation.png', Degradation, [0.018, 0.0], {}),
 ]
